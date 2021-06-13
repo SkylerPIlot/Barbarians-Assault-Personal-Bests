@@ -35,9 +35,7 @@ import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
-import net.runelite.api.Varbits;
 import net.runelite.api.events.ChatMessage;
-import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetID;
@@ -46,14 +44,12 @@ import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatCommandManager;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
-import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ChatInput;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.util.ImageUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Text;
 import net.runelite.http.api.chat.ChatClient;
@@ -74,14 +70,10 @@ public class BaPBPlugin extends Plugin
 	private static final String BA_COMMAND_STRING = "!ba";
 
 	@Getter(AccessLevel.PACKAGE)
-	private Image clockImage;
 	private int inGameBit = 0;
 	private String currentWave = START_WAVE;
 	private GameTimer gameTime;
 	private String round_role;
-
-	@Getter
-	private Round currentRound;
 
 	@Inject
 	private Client client;
@@ -94,12 +86,6 @@ public class BaPBPlugin extends Plugin
 
 	@Inject
 	private BaPBConfig config;
-
-	@Inject
-	private TimerOverlay timerOverlay;
-
-	@Inject
-	private HealerOverlay healerOverlay;
 
 	@Inject
 	private ConfigManager configManager;
@@ -122,22 +108,13 @@ public class BaPBPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		overlayManager.add(timerOverlay);
-		overlayManager.add(healerOverlay);
-		clockImage = ImageUtil.loadImageResource(getClass(), "/clock.png");
 		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
-		overlayManager.remove(timerOverlay);
-		overlayManager.remove(healerOverlay);
-		gameTime = null;
-		currentWave = START_WAVE;
-		inGameBit = 0;
-		clockImage = null;
-		round_role = "";
+		chatCommandManager.unregisterCommand(BA_COMMAND_STRING);
 	}
 
 	@Subscribe
@@ -149,21 +126,19 @@ public class BaPBPlugin extends Plugin
 			{
 				Widget rewardWidget = client.getWidget(WidgetInfo.BA_REWARD_TEXT);
 
-				if (config.waveTimes() && rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime != null)
+				if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime != null)
 				{
 					if ((gameTime.getPBTime() < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
 					{
 						configManager.setRSProfileConfiguration("BaPB", round_role, gameTime.getPBTime());
 						log.info("Personal best of: {} saved in {}",gameTime.getPBTime(), round_role);
 					}
-					currentpb = getCurrentPB("barbarian assault");
+					currentpb = getCurrentPB("Barbarian Assault");
 					if ((gameTime.getPBTime() < currentpb || currentpb == 0.0))
 					{
 						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getPBTime());
 						log.info("Personal best of: {} saved in barbarian assault",gameTime.getPBTime());
 					}
-
-					announceTime("Game finished, duration: ", gameTime.getTime(false));
 					gameTime = null;
 				}
 
@@ -171,28 +146,24 @@ public class BaPBPlugin extends Plugin
 			}
 			case WidgetID.BA_ATTACKER_GROUP_ID:
 			{
-				setRound(Role.ATTACKER);
 				round_role = " Ba attacker";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_DEFENDER_GROUP_ID:
 			{
-				setRound(Role.DEFENDER);
 				round_role = "Ba defender";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_HEALER_GROUP_ID:
 			{
-				setRound(Role.HEALER);
 				round_role = "Ba healer";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_COLLECTOR_GROUP_ID:
 			{
-				setRound(Role.COLLECTOR);
 				round_role = "Ba collector";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
@@ -213,37 +184,8 @@ public class BaPBPlugin extends Plugin
 			{
 				gameTime = new GameTimer();
 			}
-			else if (gameTime != null)
-			{
-				gameTime.setWaveStartTime();
-			}
 		}
 	}
-
-	@Subscribe
-	public void onVarbitChanged(VarbitChanged event)
-	{
-		int inGame = client.getVar(Varbits.IN_GAME_BA);
-
-		if (inGameBit != inGame)
-		{
-			if (inGameBit == 1)
-			{
-				currentRound = null;
-
-				// Use an instance check to determine if this is exiting a game or a tutorial
-				// After exiting tutorials there is a small delay before changing IN_GAME_BA back to
-				// 0 whereas when in a real wave it changes while still in the instance.
-				if (config.waveTimes() && gameTime != null && client.isInInstancedRegion())
-				{
-					announceTime("Wave " + currentWave + " duration: ", gameTime.getTime(true));
-				}
-			}
-
-			inGameBit = inGame;
-		}
-	}
-
 
 	private double getCurrentPB(String pbKey)
 	{
@@ -253,35 +195,8 @@ public class BaPBPlugin extends Plugin
 		}
 		catch (Exception e)
 		{
-
 			return 0.0;
 		}
-	}
-
-	private void setRound(Role role)
-	{
-		// Prevent changing rounds when a round is already set, as widgets can be
-		// loaded multiple times in game from eg. opening and closing the horn
-		// of glory.
-		if (currentRound == null)
-		{
-			currentRound = new Round(role);
-		}
-	}
-
-	private void announceTime(String preText, String time)
-	{
-		final String chatMessage = new ChatMessageBuilder()
-			.append(ChatColorType.NORMAL)
-			.append(preText)
-			.append(ChatColorType.HIGHLIGHT)
-			.append(time)
-			.build();
-
-		chatMessageManager.queue(QueuedMessage.builder()
-			.type(ChatMessageType.CONSOLE)
-			.runeLiteFormattedMessage(chatMessage)
-			.build());
 	}
 
 	void baLookup(ChatMessage chatMessage, String message)
