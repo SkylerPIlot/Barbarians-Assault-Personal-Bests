@@ -126,7 +126,6 @@ public class BaPBPlugin extends Plugin
 		overlayManager.add(healerOverlay);
 		clockImage = ImageUtil.loadImageResource(getClass(), "/clock.png");
 		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
-		configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", 180);
 	}
 
 	@Override
