@@ -27,29 +27,32 @@ package com.BaPB;
 
 import com.google.inject.Provides;
 import java.awt.Image;
+import java.io.IOException;
+import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
 import lombok.AccessLevel;
 import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.Varbits;
+import net.runelite.api.MessageNode;
 import net.runelite.api.events.ChatMessage;
-import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatCommandManager;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
-import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ChatInput;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.util.ImageUtil;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.util.Text;
+import net.runelite.http.api.chat.ChatClient;
 
 @PluginDescriptor(
 	name = "Barbarian Assault Personal Bests",
@@ -64,16 +67,13 @@ public class BaPBPlugin extends Plugin
 	private static final String ENDGAME_REWARD_NEEDLE_TEXT = "<br>5";
 	private double currentpb; //This is to load overall pb
 	private double rolecurrentpb; //This is to load role specific pb's and gets set when the role is determined
+	private static final String BA_COMMAND_STRING = "!ba";
 
 	@Getter(AccessLevel.PACKAGE)
-	private Image clockImage;
 	private int inGameBit = 0;
 	private String currentWave = START_WAVE;
 	private GameTimer gameTime;
 	private String round_role;
-
-	@Getter
-	private Round currentRound;
 
 	@Inject
 	private Client client;
@@ -88,13 +88,16 @@ public class BaPBPlugin extends Plugin
 	private BaPBConfig config;
 
 	@Inject
-	private TimerOverlay timerOverlay;
-
-	@Inject
-	private HealerOverlay healerOverlay;
-
-	@Inject
 	private ConfigManager configManager;
+
+	@Inject
+	private ChatCommandManager chatCommandManager;
+
+	@Inject
+	private ChatClient chatClient;
+
+	@Inject
+	private ScheduledExecutorService executor;
 
 	@Provides
 	BaPBConfig provideConfig(ConfigManager configManager)
@@ -105,21 +108,13 @@ public class BaPBPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		overlayManager.add(timerOverlay);
-		overlayManager.add(healerOverlay);
-		clockImage = ImageUtil.loadImageResource(getClass(), "/clock.png");
+		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
-		overlayManager.remove(timerOverlay);
-		overlayManager.remove(healerOverlay);
-		gameTime = null;
-		currentWave = START_WAVE;
-		inGameBit = 0;
-		clockImage = null;
-		round_role = "";
+		chatCommandManager.unregisterCommand(BA_COMMAND_STRING);
 	}
 
 	@Subscribe
@@ -131,21 +126,19 @@ public class BaPBPlugin extends Plugin
 			{
 				Widget rewardWidget = client.getWidget(WidgetInfo.BA_REWARD_TEXT);
 
-				if (config.waveTimes() && rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime != null)
+				if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime != null)
 				{
 					if ((gameTime.getPBTime() < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
 					{
-						configManager.setRSProfileConfiguration("personalbest", round_role, gameTime.getPBTime());
+						configManager.setRSProfileConfiguration("BaPB", round_role, gameTime.getPBTime());
 						log.info("Personal best of: {} saved in {}",gameTime.getPBTime(), round_role);
 					}
-					currentpb = getCurrentPB("barbarian assault");
+					currentpb = getCurrentPB("Barbarian Assault");
 					if ((gameTime.getPBTime() < currentpb || currentpb == 0.0))
 					{
-						configManager.setRSProfileConfiguration("personalbest", "barbarian assault", gameTime.getPBTime());
+						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getPBTime());
 						log.info("Personal best of: {} saved in barbarian assault",gameTime.getPBTime());
 					}
-
-					announceTime("Game finished, duration: ", gameTime.getTime(false));
 					gameTime = null;
 				}
 
@@ -153,29 +146,25 @@ public class BaPBPlugin extends Plugin
 			}
 			case WidgetID.BA_ATTACKER_GROUP_ID:
 			{
-				setRound(Role.ATTACKER);
-				round_role = "ba attacker";
+				round_role = " Ba attacker";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_DEFENDER_GROUP_ID:
 			{
-				setRound(Role.DEFENDER);
-				round_role = "ba defender";
+				round_role = "Ba defender";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_HEALER_GROUP_ID:
 			{
-				setRound(Role.HEALER);
-				round_role = "ba healer";
+				round_role = "Ba healer";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_COLLECTOR_GROUP_ID:
 			{
-				setRound(Role.COLLECTOR);
-				round_role = "ba collector";
+				round_role = "Ba collector";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
@@ -195,74 +184,101 @@ public class BaPBPlugin extends Plugin
 			{
 				gameTime = new GameTimer();
 			}
-			else if (gameTime != null)
-			{
-				gameTime.setWaveStartTime();
-			}
 		}
 	}
-
-	@Subscribe
-	public void onVarbitChanged(VarbitChanged event)
-	{
-		int inGame = client.getVar(Varbits.IN_GAME_BA);
-
-		if (inGameBit != inGame)
-		{
-			if (inGameBit == 1)
-			{
-				currentRound = null;
-
-				// Use an instance check to determine if this is exiting a game or a tutorial
-				// After exiting tutorials there is a small delay before changing IN_GAME_BA back to
-				// 0 whereas when in a real wave it changes while still in the instance.
-				if (config.waveTimes() && gameTime != null && client.isInInstancedRegion())
-				{
-					announceTime("Wave " + currentWave + " duration: ", gameTime.getTime(true));
-				}
-			}
-
-			inGameBit = inGame;
-		}
-	}
-
 
 	private double getCurrentPB(String pbKey)
 	{
 		try
 		{
-			return configManager.getRSProfileConfiguration("personalbest", pbKey, double.class);
+			return configManager.getRSProfileConfiguration("BaPB", pbKey, double.class);
 		}
 		catch (Exception e)
 		{
-
 			return 0.0;
 		}
 	}
 
-	private void setRound(Role role)
+	void baLookup(ChatMessage chatMessage, String message)
 	{
-		// Prevent changing rounds when a round is already set, as widgets can be
-		// loaded multiple times in game from eg. opening and closing the horn
-		// of glory.
-		if (currentRound == null)
-		{
-			currentRound = new Round(role);
-		}
-	}
 
-	private void announceTime(String preText, String time)
-	{
-		final String chatMessage = new ChatMessageBuilder()
+		ChatMessageType type = chatMessage.getType();
+		String search = message.substring(BA_COMMAND_STRING.length() + 1);
+		final String player;
+		if (type.equals(ChatMessageType.PRIVATECHATOUT))
+		{
+			player = client.getLocalPlayer().getName();
+		}
+		else
+		{
+			player = Text.removeTags(chatMessage.getName())
+				.replace('\u00A0', ' ');
+		}
+
+		net.runelite.http.api.chat.Task task;
+		final double BaPb;
+		try
+		{
+			BaPb = chatClient.getPb(player, search);
+		}
+		catch (IOException ex)
+		{
+			log.debug("unable to lookup slayer task", ex);
+			return;
+		}
+		int minutes = (int) (Math.floor(BaPb) / 60);
+		double seconds = BaPb % 60;
+
+		// If the seconds is an integer, it is ambiguous if the pb is a precise
+		// pb or not. So we always show it without the trailing .00.
+		final String time = Math.floor(seconds) == seconds ?
+			String.format("%d:%02d", minutes, (int) seconds) :
+			String.format("%d:%05.2f", minutes, seconds);
+
+		String response = new ChatMessageBuilder()
+			.append(ChatColorType.HIGHLIGHT)
+			.append(search)
 			.append(ChatColorType.NORMAL)
-			.append(preText)
+			.append(" personal best: ")
 			.append(ChatColorType.HIGHLIGHT)
 			.append(time)
 			.build();
 
-		chatMessageManager.queue(QueuedMessage.builder()
-			.type(ChatMessageType.CONSOLE)
-			.runeLiteFormattedMessage(chatMessage)
-			.build());
+		log.debug("Setting response {}", response);
+		final MessageNode messageNode = chatMessage.getMessageNode();
+		messageNode.setRuneLiteFormatMessage(response);
+		chatMessageManager.update(messageNode);
+		client.refreshChat();
+	}
+	private boolean baSubmit(ChatInput chatInput, String value)
+	{
+		int idx = value.indexOf(' ');
+		final String boss = value.substring(idx + 1);
+
+		final double pb = configManager.getRSProfileConfiguration("BaPB", boss, double.class);
+		if (pb <= 0)
+		{
+			return false;
+		}
+
+		final String playerName = client.getLocalPlayer().getName();
+
+		executor.execute(() ->
+		{
+			try
+			{
+				chatClient.submitPb(playerName, boss, pb);
+			}
+			catch (Exception ex)
+			{
+				log.warn("unable to submit personal best", ex);
+			}
+			finally
+			{
+				chatInput.resume();
+			}
+		});
+
+		return true;
 	}
 }
