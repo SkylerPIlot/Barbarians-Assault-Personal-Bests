@@ -53,6 +53,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Text;
 import net.runelite.http.api.chat.ChatClient;
+import org.apache.commons.text.WordUtils;
 
 @PluginDescriptor(
 	name = "Barbarian Assault Personal Bests",
@@ -137,7 +138,7 @@ public class BaPBPlugin extends Plugin
 					if ((gameTime.getPBTime() < currentpb || currentpb == 0.0))
 					{
 						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getPBTime());
-						log.info("Personal best of: {} saved in barbarian assault",gameTime.getPBTime());
+						log.info("Personal best of: {} saved in Barbarian Assault",gameTime.getPBTime());
 					}
 					gameTime = null;
 				}
@@ -146,25 +147,25 @@ public class BaPBPlugin extends Plugin
 			}
 			case WidgetID.BA_ATTACKER_GROUP_ID:
 			{
-				round_role = " Ba attacker";
+				round_role = "Attacker";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_DEFENDER_GROUP_ID:
 			{
-				round_role = "Ba defender";
+				round_role = "Defender";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_HEALER_GROUP_ID:
 			{
-				round_role = "Ba healer";
+				round_role = "Healer";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
 			case WidgetID.BA_COLLECTOR_GROUP_ID:
 			{
-				round_role = "Ba collector";
+				round_role = "Collector";
 				rolecurrentpb = getCurrentPB(round_role);
 				break;
 			}
@@ -203,7 +204,7 @@ public class BaPBPlugin extends Plugin
 	{
 
 		ChatMessageType type = chatMessage.getType();
-		String search = message.substring(BA_COMMAND_STRING.length() + 1);
+		String search = longBossName(message.substring(BA_COMMAND_STRING.length() + 1));
 		final String player;
 		if (type.equals(ChatMessageType.PRIVATECHATOUT))
 		{
@@ -223,7 +224,7 @@ public class BaPBPlugin extends Plugin
 		}
 		catch (IOException ex)
 		{
-			log.debug("unable to lookup slayer task", ex);
+			log.debug("unable to retrive PB", ex);
 			return;
 		}
 		int minutes = (int) (Math.floor(BaPb) / 60);
@@ -253,7 +254,7 @@ public class BaPBPlugin extends Plugin
 	private boolean baSubmit(ChatInput chatInput, String value)
 	{
 		int idx = value.indexOf(' ');
-		final String boss = value.substring(idx + 1);
+		final String boss = longBossName(value.substring(idx + 1));
 
 		final double pb = configManager.getRSProfileConfiguration("BaPB", boss, double.class);
 		if (pb <= 0)
@@ -281,4 +282,40 @@ public class BaPBPlugin extends Plugin
 
 		return true;
 	}
+	private static String longBossName(String boss)
+	{
+		switch (boss.toLowerCase())
+		{
+			case "att":
+			case "a":
+				return "Attacker";
+
+			case "heal":
+			case "h":
+				return "Healer";
+
+			case "def":
+			case "d":
+				return "Defender";
+
+			case "eggboi":
+			case "coll":
+			case "col":
+			case "c":
+				return "Collector";
+
+			case "":
+			case " ":
+			case "ba":
+				return "Barbarian Assault";
+
+			default:
+				return WordUtils.capitalize(boss);
+		}
+	}
+
+
+
+
+
 }

@@ -1,13 +1,16 @@
 # Barbarian Assault Personal Bests
 This Plugin serves to replicate the function of the normal barbarian assault plugin function as well as adding the ability 
 to use the following commands.
-!pb Barbarian Assault
-!pb Ba healer
-!pb Ba collector
-!pb Ba defender
-!pb Ba attacker
 
-Capitilization is Important!!!!
+!ba Barbarian Assault
+
+!ba Healer
+
+!ba Collector
+
+!ba Defender
+
+!ba Attacker
 
 The time saved into each one is based on the time shown after w10 is completed and the ability to be saved into a role specific pb can be
 turned on and off though the default is on.
