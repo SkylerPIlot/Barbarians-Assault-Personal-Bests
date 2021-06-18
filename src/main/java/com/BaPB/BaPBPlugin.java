@@ -140,6 +140,7 @@ public class BaPBPlugin extends Plugin
 						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getPBTime());
 						log.info("Personal best of: {} saved in Barbarian Assault",gameTime.getPBTime());
 					}
+					configManager.setRSProfileConfiguration("BaPB", "Recent", gameTime.getPBTime());
 					gameTime = null;
 				}
 
@@ -224,7 +225,7 @@ public class BaPBPlugin extends Plugin
 		}
 		catch (IOException ex)
 		{
-			log.debug("unable to retrive PB", ex);
+			log.debug("unable to retrieve PB", ex);
 			return;
 		}
 		int minutes = (int) (Math.floor(BaPb) / 60);
@@ -308,6 +309,9 @@ public class BaPBPlugin extends Plugin
 			case " ":
 			case "ba":
 				return "Barbarian Assault";
+
+			case "r":
+				return "Recent";
 
 			default:
 				return WordUtils.capitalize(boss);

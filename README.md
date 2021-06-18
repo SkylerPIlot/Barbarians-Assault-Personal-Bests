@@ -12,6 +12,8 @@ to use the following commands.
 
 !ba Attacker
 
+!ba Recent
+
 The time saved into each one is based on the time shown after w10 is completed and the ability to be saved into a role specific pb can be
 turned on and off though the default is on.
 
