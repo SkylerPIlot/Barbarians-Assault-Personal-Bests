@@ -36,14 +36,13 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.GameTick;
+import net.runelite.api.events.WidgetClosed;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
-import net.runelite.client.chat.ChatColorType;
-import net.runelite.client.chat.ChatCommandManager;
-import net.runelite.client.chat.ChatMessageBuilder;
-import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.*;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ChatInput;
@@ -75,6 +74,26 @@ public class BaPBPlugin extends Plugin
 	private String currentWave = START_WAVE;
 	private GameTimer gameTime;
 	private String round_role;
+	private Boolean scanning;
+	private int round_roleID;
+	private Boolean leech;
+	//defines all of my specific widgets and icon names could I do it better yes, but like it works
+	private Integer BaRoleWidget = 256;
+	private Integer BaScrollWidget = 159;
+	private Integer leaderID = 8;
+	private Integer player1ID = 9;
+	private Integer player2ID = 10;
+	private Integer player3ID = 11;
+	private Integer player4ID = 12;
+	private Integer leadericonID = 18;
+	private Integer player1iconID = 19;
+	private Integer player2iconID = 20;
+	private Integer player3iconID = 21;
+	private Integer player4iconID = 22;
+	private Integer attackerIcon = 20561;
+	private Integer defenderIcon = 20566;
+	private Integer collectorIcon = 20563;
+	private Integer healerIcon = 20569;
 
 	@Inject
 	private Client client;
@@ -110,12 +129,14 @@ public class BaPBPlugin extends Plugin
 	protected void startUp() throws Exception
 	{
 		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
+		scanning = false;
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
 		chatCommandManager.unregisterCommand(BA_COMMAND_STRING);
+		scanning = false;
 	}
 
 	@Subscribe
@@ -146,32 +167,91 @@ public class BaPBPlugin extends Plugin
 
 				break;
 			}
-			case WidgetID.BA_ATTACKER_GROUP_ID:
-			{
-				round_role = "Attacker";
-				rolecurrentpb = getCurrentPB(round_role);
-				break;
+			case WidgetID.BA_TEAM_GROUP_ID: {
+				scanning = true;
+				leech = false;
 			}
-			case WidgetID.BA_DEFENDER_GROUP_ID:
-			{
-				round_role = "Defender";
-				rolecurrentpb = getCurrentPB(round_role);
-				break;
+			case 159: {//this is to set scannign true when scroll is used on someone
+				scanning = true;
 			}
-			case WidgetID.BA_HEALER_GROUP_ID:
-			{
-				round_role = "Healer";
-				rolecurrentpb = getCurrentPB(round_role);
-				break;
-			}
-			case WidgetID.BA_COLLECTOR_GROUP_ID:
-			{
-				round_role = "Collector";
-				rolecurrentpb = getCurrentPB(round_role);
-				break;
+			case 158: {//this is to set scannign true when scroll is used on someone
+				scanning = true;
 			}
 		}
 	}
+
+	@Subscribe
+	public void onWidgetClosed(WidgetClosed event){
+		if (event.getGroupId() == BaRoleWidget) scanning = false;//sets scanning to false when leaving w1 or leaving for any reason
+	}
+
+
+	@Subscribe
+	public void onGameTick(GameTick event)
+	{
+		if(scanning) {
+			final String player;
+			player = client.getLocalPlayer().getName();
+			Widget leader = client.getWidget(BaRoleWidget,leaderID);
+			Widget leaderIcon = client.getWidget(BaRoleWidget, leadericonID);
+			Widget player1 = client.getWidget(BaRoleWidget,player1ID);
+			Widget player1Icon = client.getWidget(BaRoleWidget,player1iconID);
+			Widget player2 = client.getWidget(BaRoleWidget,player2ID);
+			Widget player2Icon = client.getWidget(BaRoleWidget,player2iconID);
+			Widget player3 = client.getWidget(BaRoleWidget,player3ID);
+			Widget player3Icon = client.getWidget(BaRoleWidget,player3iconID);
+			Widget player4 = client.getWidget(BaRoleWidget, player4ID);
+			Widget player4Icon = client.getWidget(BaRoleWidget, player4iconID);
+			log.info("Scanning Team");
+
+			if ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535)){//this number is the blank icon
+				log.info("Scanning Complete");
+				log.info("Leader is {}", leader.getText());
+				log.info("Player1 is {}", player1.getText());
+				log.info("Player2 is {}", player2.getText());
+				log.info("Player3 is {}", player3.getText());
+				log.info("Player4 is {}", player4.getText());
+				scanning = false;
+
+
+				for (int i = 8; i < 12; i++) {
+					if (client.getWidget(BaRoleWidget, i).getText().contains(player)){
+						//this checks which location the client is in the scroll
+					round_roleID = client.getWidget(BaRoleWidget, (i+10)).getModelId();
+					round_role = IDfinder(round_roleID);
+					log.info("Your role has been identified as {}",round_role);
+					}
+				}
+
+				if((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon)){
+					round_role = "Leech "+round_role;
+					log.info("This has been identified as a leech run as {}",round_role);
+					chatMessageManager.queue(QueuedMessage.builder()
+							.type(ChatMessageType.CONSOLE)
+							.runeLiteFormattedMessage("Leech run identified as " + round_role + " good luck :)")
+							.build());
+					leech = true;
+				}
+
+
+				if((player.contains(leader.getText()) && leaderIcon.getModelId() == attackerIcon) && !leech){
+					round_role = "Main Attacker";
+					log.info("You have been identified as Main Attacker");
+					rolecurrentpb = getCurrentPB(round_role);
+					chatMessageManager.queue(QueuedMessage.builder()
+							.type(ChatMessageType.CONSOLE)
+							.runeLiteFormattedMessage("Fun run identified as " + round_role + " good luck :)")
+							.build());
+				}
+
+			}
+
+
+
+
+			}
+		}
+
 
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
@@ -283,27 +363,53 @@ public class BaPBPlugin extends Plugin
 
 		return true;
 	}
+
+	private String IDfinder(int roleID){
+		if (roleID == attackerIcon) return "Attacker";
+		if (roleID == defenderIcon) return "Defender";
+		if (roleID == collectorIcon) return "Collector";
+		if (roleID == healerIcon) return "Healer";
+		return "";
+	}
+
+
 	private static String longBossName(String boss)
 	{
 		switch (boss.toLowerCase())
 		{
 			case "att":
 			case "a":
+			case "main":
+				return "Main Attacker";
+
+			case "2a":
 				return "Attacker";
+
+			case "la":
+				return "Leech Attacker";
 
 			case "heal":
 			case "h":
 				return "Healer";
 
+			case "lh":
+				return "Leech Healer";
+
 			case "def":
 			case "d":
 				return "Defender";
+
+			case "ld":
+				return "Leech Defender";
 
 			case "eggboi":
 			case "coll":
 			case "col":
 			case "c":
 				return "Collector";
+
+			case "lc":
+				return "Leech Collector";
 
 			case "":
 			case " ":
