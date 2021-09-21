@@ -153,13 +153,13 @@ public class BaPBPlugin extends Plugin
 					if ((gameTime.getPBTime() < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
 					{
 						configManager.setRSProfileConfiguration("BaPB", round_role, gameTime.getPBTime());
-						log.info("Personal best of: {} saved in {}",gameTime.getPBTime(), round_role);
+						log.debug("Personal best of: {} saved in {}",gameTime.getPBTime(), round_role);
 					}
 					currentpb = getCurrentPB("Barbarian Assault");
 					if ((gameTime.getPBTime() < currentpb || currentpb == 0.0))
 					{
 						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getPBTime());
-						log.info("Personal best of: {} saved in Barbarian Assault",gameTime.getPBTime());
+						log.debug("Personal best of: {} saved in Barbarian Assault",gameTime.getPBTime());
 					}
 					configManager.setRSProfileConfiguration("BaPB", "Recent", gameTime.getPBTime());
 					gameTime = null;
@@ -202,15 +202,15 @@ public class BaPBPlugin extends Plugin
 			Widget player3Icon = client.getWidget(BaRoleWidget,player3iconID);
 			Widget player4 = client.getWidget(BaRoleWidget, player4ID);
 			Widget player4Icon = client.getWidget(BaRoleWidget, player4iconID);
-			log.info("Scanning Team");
+			log.debug("Scanning Team");
 
 			if ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535)){//this number is the blank icon
-				log.info("Scanning Complete");
-				log.info("Leader is {}", leader.getText());
-				log.info("Player1 is {}", player1.getText());
-				log.info("Player2 is {}", player2.getText());
-				log.info("Player3 is {}", player3.getText());
-				log.info("Player4 is {}", player4.getText());
+				log.debug("Scanning Complete");
+				log.debug("Leader is {}", leader.getText());
+				log.debug("Player1 is {}", player1.getText());
+				log.debug("Player2 is {}", player2.getText());
+				log.debug("Player3 is {}", player3.getText());
+				log.debug("Player4 is {}", player4.getText());
 				scanning = false;
 
 
@@ -219,30 +219,26 @@ public class BaPBPlugin extends Plugin
 						//this checks which location the client is in the scroll
 					round_roleID = client.getWidget(BaRoleWidget, (i+10)).getModelId();
 					round_role = IDfinder(round_roleID);
-					log.info("Your role has been identified as {}",round_role);
+					log.debug("Your role has been identified as {}",round_role);
 					}
 				}
 
 				if((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon)){
 					round_role = "Leech "+round_role;
-					log.info("This has been identified as a leech run as {}",round_role);
-					chatMessageManager.queue(QueuedMessage.builder()
-							.type(ChatMessageType.CONSOLE)
-							.runeLiteFormattedMessage("Leech run identified as " + round_role + " good luck :)")
-							.build());
-					leech = true;
+					log.debug("This has been identified as a leech run as {}",round_role);
 				}
 
 
 				if((player.contains(leader.getText()) && leaderIcon.getModelId() == attackerIcon) && !leech){
 					round_role = "Main Attacker";
-					log.info("You have been identified as Main Attacker");
+					log.debug("You have been identified as Main Attacker");
 					rolecurrentpb = getCurrentPB(round_role);
-					chatMessageManager.queue(QueuedMessage.builder()
-							.type(ChatMessageType.CONSOLE)
-							.runeLiteFormattedMessage("Fun run identified as " + round_role + " good luck :)")
-							.build());
 				}
+				chatMessageManager.queue(QueuedMessage.builder()
+						.type(ChatMessageType.CONSOLE)
+						.runeLiteFormattedMessage("Run identified as " + round_role + " good luck :)")
+						.build());
+				leech = true;
 
 			}
 
