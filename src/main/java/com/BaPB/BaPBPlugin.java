@@ -163,6 +163,7 @@ public class BaPBPlugin extends Plugin
 					}
 					configManager.setRSProfileConfiguration("BaPB", "Recent", gameTime.getPBTime());
 					gameTime = null;
+					leech = false;
 				}
 
 				break;
@@ -171,10 +172,10 @@ public class BaPBPlugin extends Plugin
 				scanning = true;
 				leech = false;
 			}
-			case 159: {//this is to set scannign true when scroll is used on someone
+			case 159: {//this is to set scanning true when scroll is used on someone
 				scanning = true;
 			}
-			case 158: {//this is to set scannign true when scroll is used on someone
+			case 158: {//this is to set scanning true when scroll is used on someone
 				scanning = true;
 			}
 		}
@@ -204,7 +205,7 @@ public class BaPBPlugin extends Plugin
 			Widget player4Icon = client.getWidget(BaRoleWidget, player4iconID);
 			log.debug("Scanning Team");
 
-			if ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535)){//this number is the blank icon
+			if ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535) && (leaderIcon.getModelId() != 65535)){//this number is the blank icon
 				log.debug("Scanning Complete");
 				log.debug("Leader is {}", leader.getText());
 				log.debug("Player1 is {}", player1.getText());
@@ -214,8 +215,9 @@ public class BaPBPlugin extends Plugin
 				scanning = false;
 
 
-				for (int i = 8; i < 12; i++) {
-					if (client.getWidget(BaRoleWidget, i).getText().contains(player)){
+				for (int i = 8; i < 13; i++) {
+					String player_in_list = (client.getWidget(BaRoleWidget, i).getText());
+					if (player.compareTo(player_in_list) == 0){
 						//this checks which location the client is in the scroll
 					round_roleID = client.getWidget(BaRoleWidget, (i+10)).getModelId();
 					round_role = IDfinder(round_roleID);
@@ -226,6 +228,7 @@ public class BaPBPlugin extends Plugin
 				if((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon)){
 					round_role = "Leech "+round_role;
 					log.debug("This has been identified as a leech run as {}",round_role);
+					leech = true;
 				}
 
 
@@ -234,11 +237,13 @@ public class BaPBPlugin extends Plugin
 					log.debug("You have been identified as Main Attacker");
 					rolecurrentpb = getCurrentPB(round_role);
 				}
-				chatMessageManager.queue(QueuedMessage.builder()
+				if(config.Message())
+				{
+					chatMessageManager.queue(QueuedMessage.builder()
 						.type(ChatMessageType.CONSOLE)
 						.runeLiteFormattedMessage("Run identified as " + round_role + " good luck :)")
 						.build());
-				leech = true;
+				}
 
 			}
 

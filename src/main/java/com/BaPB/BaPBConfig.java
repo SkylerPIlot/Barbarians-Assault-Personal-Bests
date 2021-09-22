@@ -41,4 +41,11 @@ public interface BaPBConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+		keyName = "msg",
+		name = "Turn round msg on/off",
+		description = "Turning this on will display a nice lil message at the start of the round"
+	)
+		default boolean Message() {return true;}
 }
