@@ -235,7 +235,7 @@ public class BaPBPlugin extends Plugin
 				if((player.contains(leader.getText()) && leaderIcon.getModelId() == attackerIcon) && !leech){
 					round_role = "Main Attacker";
 					log.debug("You have been identified as Main Attacker");
-					rolecurrentpb = getCurrentPB(round_role);
+
 				}
 				if(config.Message())
 				{
@@ -244,7 +244,7 @@ public class BaPBPlugin extends Plugin
 						.runeLiteFormattedMessage("Run identified as " + round_role + " good luck :)")
 						.build());
 				}
-
+				rolecurrentpb = getCurrentPB(round_role);
 			}
 
 
