@@ -161,7 +161,7 @@ public class BaPBPlugin extends Plugin
 						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getPBTime());
 						log.debug("Personal best of: {} saved in Barbarian Assault",gameTime.getPBTime());
 					}
-					configManager.setRSProfileConfiguration("BaPB", "Recent", gameTime.getPBTime());
+					configManager.setRSProfileConfiguration("BaPB", "Recent", (gameTime.getPBTime() + roleToDouble(round_role)));
 					gameTime = null;
 					leech = false;
 				}
@@ -282,11 +282,9 @@ public class BaPBPlugin extends Plugin
 		}
 	}
 
-	void baLookup(ChatMessage chatMessage, String message)
-	{
-
+	void recentLookup(ChatMessage chatMessage, String message){
 		ChatMessageType type = chatMessage.getType();
-		String search = longBossName(message.substring(BA_COMMAND_STRING.length() + 1));
+		String search = message.substring(BA_COMMAND_STRING.length() + 1);
 		final String player;
 		if (type.equals(ChatMessageType.PRIVATECHATOUT))
 		{
@@ -296,6 +294,80 @@ public class BaPBPlugin extends Plugin
 		{
 			player = Text.removeTags(chatMessage.getName())
 				.replace('\u00A0', ' ');
+		}
+
+
+
+
+		net.runelite.http.api.chat.Task task;
+		final double BaPb;
+		try
+		{
+			BaPb = chatClient.getPb(player, "Recent");
+		}
+		catch (IOException ex)
+		{
+			log.debug("unable to retrieve PB", ex);
+			return;
+		}
+
+		//now we grab the current role which was saved in the .xx of the double :)
+		double roleDouble = BaPb - (int)BaPb;
+		//gotta round it cause of course we do
+		roleDouble = Math.round(roleDouble*100.0)/100.0;
+
+		log.debug(String.valueOf(roleDouble));
+		String role = doubleToRole(roleDouble);
+
+
+		int minutes = (int) (Math.floor(BaPb) / 60);
+		double seconds = (int)BaPb % 60;
+
+		// If the seconds is an integer, it is ambiguous if the pb is a precise
+		// pb or not. So we always show it without the trailing .00.
+		final String time = Math.floor(seconds) == seconds ?
+			String.format("%d:%02d", minutes, (int) seconds) :
+			String.format("%d:%05.2f", minutes, seconds);
+
+		String response = new ChatMessageBuilder()
+			.append(ChatColorType.HIGHLIGHT)
+			.append("Recent ")
+			.append(ChatColorType.NORMAL)
+			.append(role)
+			.append(" run: ")
+			.append(ChatColorType.HIGHLIGHT)
+			.append(time)
+			.build();
+
+		log.debug("Setting response {}", response);
+		final MessageNode messageNode = chatMessage.getMessageNode();
+		messageNode.setRuneLiteFormatMessage(response);
+		chatMessageManager.update(messageNode);
+		client.refreshChat();
+	}
+
+
+	void baLookup(ChatMessage chatMessage, String message)
+	{
+
+		ChatMessageType type = chatMessage.getType();
+		String search = message.substring(BA_COMMAND_STRING.length() + 1);
+		final String player;
+		if (type.equals(ChatMessageType.PRIVATECHATOUT))
+		{
+			player = client.getLocalPlayer().getName();
+		}
+		else
+		{
+			player = Text.removeTags(chatMessage.getName())
+				.replace('\u00A0', ' ');
+		}
+
+		search = longBossName(search);
+
+		if(search == "Recent"){
+			recentLookup(chatMessage, message);
+			return;
 		}
 
 		net.runelite.http.api.chat.Task task;
@@ -371,6 +443,32 @@ public class BaPBPlugin extends Plugin
 		if (roleID == collectorIcon) return "Collector";
 		if (roleID == healerIcon) return "Healer";
 		return "";
+	}
+
+	private String doubleToRole(double time){
+        if(time == .10) return "Attacker";
+		if(time == .20) return "Defender";
+		if(time == .30) return "Collector";
+		if(time == .40) return "Healer";
+		if(time == .50) return "Leech Attacker";
+		if(time == .60) return "Leech Defender";
+		if(time == .70) return "Leech Collector";
+		if(time == .80) return "Leech Healer";
+		if(time == .90) return "Main Attacker";
+		return "Please relaunch client and do another run to fix this bug";
+	}
+
+	private double roleToDouble(String role){
+		if(role == "Attacker") return .10;
+		if(role == "Defender") return .20;
+		if(role == "Collector") return .30;
+		if(role == "Healer") return .40;
+		if(role == "Leech Attacker") return .50;
+		if(role == "Leech Defender") return .60;
+		if(role == "Leech Collector") return .70;
+		if(role == "Leech Healer") return .80;
+		if(role == "Main Attacker") return .90;
+		return .00;
 	}
 
 

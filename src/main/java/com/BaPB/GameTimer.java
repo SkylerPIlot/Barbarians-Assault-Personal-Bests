@@ -33,9 +33,9 @@ import static net.runelite.client.util.RSTimeUnit.GAME_TICKS;
 class GameTimer
 {
 	final private Instant startTime = Instant.now();
-	double getPBTime()
+	int getPBTime()
 	{
-		return Duration.between(startTime, Instant.now()).minus(Duration.of(1, GAME_TICKS)).getSeconds();
+		return (int)Duration.between(startTime, Instant.now()).minus(Duration.of(1, GAME_TICKS)).getSeconds();
 	}
 
 }
