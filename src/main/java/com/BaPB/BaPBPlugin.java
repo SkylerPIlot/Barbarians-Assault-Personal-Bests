@@ -61,7 +61,7 @@ import net.runelite.client.util.Text;
 import net.runelite.http.api.chat.ChatClient;
 import org.apache.commons.text.WordUtils;
 
-import static net.runelite.client.RuneLite.LOGS_DIR;
+import static net.runelite.client.RuneLite.RUNELITE_DIR;
 
 @PluginDescriptor(
 	name = "Barbarian Assault Personal Bests",
@@ -143,7 +143,7 @@ public class BaPBPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		File logFile = new File(LOGS_DIR, "RunTimes.csv");
+		File logFile = new File(RUNELITE_DIR, "barbarian-assault-pbs.csv");
 		fw = new FileWriter(logFile, true);
 		bw = new BufferedWriter(fw);
 		out = new PrintWriter(bw);
