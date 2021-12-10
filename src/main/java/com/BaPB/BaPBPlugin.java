@@ -27,7 +27,14 @@ package com.BaPB;
 
 import com.google.inject.Provides;
 import java.awt.Image;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
 import lombok.AccessLevel;
@@ -53,6 +60,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Text;
 import net.runelite.http.api.chat.ChatClient;
 import org.apache.commons.text.WordUtils;
+
+import static net.runelite.client.RuneLite.LOGS_DIR;
 
 @PluginDescriptor(
 	name = "Barbarian Assault Personal Bests",
@@ -94,6 +103,10 @@ public class BaPBPlugin extends Plugin
 	private Integer defenderIcon = 20566;
 	private Integer collectorIcon = 20563;
 	private Integer healerIcon = 20569;
+	private PrintWriter out;
+	private BufferedWriter bw;
+	private FileWriter fw;
+
 
 	@Inject
 	private Client client;
@@ -125,11 +138,20 @@ public class BaPBPlugin extends Plugin
 		return configManager.getConfig(BaPBConfig.class);
 	}
 
+
+	StringBuilder str = new StringBuilder();
 	@Override
 	protected void startUp() throws Exception
 	{
+		File logFile = new File(LOGS_DIR, "RunTimes.csv");
+		fw = new FileWriter(logFile, true);
+		bw = new BufferedWriter(fw);
+		out = new PrintWriter(bw);
 		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
 		scanning = false;
+		str = new StringBuilder();
+		log.debug(String.valueOf(str.length()));
+
 	}
 
 	@Override
@@ -137,6 +159,18 @@ public class BaPBPlugin extends Plugin
 	{
 		chatCommandManager.unregisterCommand(BA_COMMAND_STRING);
 		scanning = false;
+		shutDownActions();
+		out.close();
+		bw.close();
+		fw.close();
+		str = new StringBuilder();
+	}
+
+	private void shutDownActions() throws IOException
+	{
+		out.flush();
+		bw.flush();
+		fw.flush();
 	}
 
 	@Subscribe
@@ -162,6 +196,15 @@ public class BaPBPlugin extends Plugin
 						log.debug("Personal best of: {} saved in Barbarian Assault",gameTime.getPBTime());
 					}
 					configManager.setRSProfileConfiguration("BaPB", "Recent", (gameTime.getPBTime() + roleToDouble(round_role)));
+					if(config.Logging())
+					{
+						str
+							.append(Instant.now().toString())
+							.append(",")
+							.append(String.valueOf(gameTime.getPBTime()));
+						out.println(str);
+						str = new StringBuilder();;
+					}
 					gameTime = null;
 					leech = false;
 				}
@@ -212,11 +255,38 @@ public class BaPBPlugin extends Plugin
 				log.debug("Player2 is {}", player2.getText());
 				log.debug("Player3 is {}", player3.getText());
 				log.debug("Player4 is {}", player4.getText());
+
+
+				if(str.length() == 0  && config.Logging()){
+					log.debug("Crea;ted Log start");
+					str
+						.append(leader.getText())
+						.append(",")
+						.append(IDfinder(leaderIcon.getModelId()))
+						.append(",")
+						.append(player1.getText())
+						.append(",")
+						.append(IDfinder(player1Icon.getModelId()))
+						.append(",")
+						.append(player2.getText())
+						.append(",")
+						.append(IDfinder(player2Icon.getModelId()))
+						.append(",")
+						.append(player3.getText())
+						.append(",")
+						.append(IDfinder(player3Icon.getModelId()))
+						.append(",")
+						.append(player4.getText())
+						.append(",")
+						.append(IDfinder(player4Icon.getModelId()))
+						.append(",");
+				}
 				scanning = false;
 
 
 				for (int i = 8; i < 13; i++) {
 					String player_in_list = (client.getWidget(BaRoleWidget, i).getText());
+					String playerRole = IDfinder(client.getWidget(BaRoleWidget, (i+10)).getModelId());
 					if (player.compareTo(player_in_list) == 0){
 						//this checks which location the client is in the scroll
 					round_roleID = client.getWidget(BaRoleWidget, (i+10)).getModelId();
@@ -224,6 +294,9 @@ public class BaPBPlugin extends Plugin
 					log.debug("Your role has been identified as {}",round_role);
 					}
 				}
+
+
+
 
 				if((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon)){
 					round_role = "Leech "+round_role;
@@ -411,6 +484,7 @@ public class BaPBPlugin extends Plugin
 		final String boss = longBossName(value.substring(idx + 1));
 
 		final double pb = configManager.getRSProfileConfiguration("BaPB", boss, double.class);
+
 		if (pb <= 0)
 		{
 			return false;

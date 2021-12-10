@@ -48,4 +48,10 @@ public interface BaPBConfig extends Config
 		description = "Turning this on will display a nice lil message at the start of the round"
 	)
 		default boolean Message() {return true;}
+	@ConfigItem(
+		keyName = "log",
+		name = "logger",
+		description = "ALlows to log your times to a file in your .runelite file turn off/on to update file"
+	)
+	default boolean Logging() {return false;}
 }
