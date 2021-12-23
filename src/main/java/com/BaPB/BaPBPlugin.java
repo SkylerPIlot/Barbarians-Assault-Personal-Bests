@@ -148,7 +148,7 @@ public class BaPBPlugin extends Plugin
 		fw = new FileWriter(logFile, true);
 		bw = new BufferedWriter(fw);
 		out = new PrintWriter(bw);
-		configManager.setRSProfileConfiguration("BaPB", "Recent", roleToDouble("Leech " + "Defender"));
+		//configManager.setRSProfileConfiguration("BaPB", "Recent", roleToDouble("Leech " + "Defender"));
 		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
 		scanning = false;
 		str = new StringBuilder();
