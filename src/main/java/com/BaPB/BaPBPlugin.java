@@ -252,7 +252,7 @@ public class BaPBPlugin extends Plugin
 			Widget player4Icon = client.getWidget(BaRoleWidget, player4iconID);
 			log.debug("Scanning Team");
 
-			if (true || ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535) && (leaderIcon.getModelId() != 65535))){//this number is the blank icon
+			if ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535) && (leaderIcon.getModelId() != 65535)){//this number is the blank icon
 				log.debug("Scanning Complete");
 				log.debug("Leader is {}", leader.getText());
 				log.debug("Player1 is {}", player1.getText());
@@ -302,7 +302,7 @@ public class BaPBPlugin extends Plugin
 
 
 
-				if(true || ((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon))){
+				if((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon)){
 					round_role = "Leech "+round_role;
 					log.debug("This has been identified as a leech run as {}",round_role);
 					leech = true;
