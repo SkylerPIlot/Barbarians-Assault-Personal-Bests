@@ -51,6 +51,7 @@ import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.chat.*;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ChatInput;
 import net.runelite.client.plugins.Plugin;
@@ -147,11 +148,10 @@ public class BaPBPlugin extends Plugin
 		fw = new FileWriter(logFile, true);
 		bw = new BufferedWriter(fw);
 		out = new PrintWriter(bw);
+		configManager.setRSProfileConfiguration("BaPB", "Recent", roleToDouble("Leech " + "Defender"));
 		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
 		scanning = false;
 		str = new StringBuilder();
-		log.debug(String.valueOf(str.length()));
-
 	}
 
 	@Override
@@ -195,7 +195,11 @@ public class BaPBPlugin extends Plugin
 						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getPBTime());
 						log.debug("Personal best of: {} saved in Barbarian Assault",gameTime.getPBTime());
 					}
-					configManager.setRSProfileConfiguration("BaPB", "Recent", (gameTime.getPBTime() + roleToDouble(round_role)));
+					//log.info(round_role);
+					//log.info(String.valueOf(gameTime.getPBTime()));
+					//log.info(String.valueOf(roleToDouble(round_role)));
+					//log.info(String.valueOf((gameTime.getPBTime() + roleToDouble(round_role))));
+					configManager.setRSProfileConfiguration("BaPB", "Recent", (double)(gameTime.getPBTime() + roleToDouble(round_role)));
 					if(config.Logging())
 					{
 						str
@@ -248,7 +252,7 @@ public class BaPBPlugin extends Plugin
 			Widget player4Icon = client.getWidget(BaRoleWidget, player4iconID);
 			log.debug("Scanning Team");
 
-			if ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535) && (leaderIcon.getModelId() != 65535)){//this number is the blank icon
+			if (true || ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535) && (leaderIcon.getModelId() != 65535))){//this number is the blank icon
 				log.debug("Scanning Complete");
 				log.debug("Leader is {}", leader.getText());
 				log.debug("Player1 is {}", player1.getText());
@@ -258,7 +262,7 @@ public class BaPBPlugin extends Plugin
 
 
 				if(str.length() == 0  && config.Logging()){
-					log.debug("Crea;ted Log start");
+					log.debug("Created Log start");
 					str
 						.append(leader.getText())
 						.append(",")
@@ -298,7 +302,7 @@ public class BaPBPlugin extends Plugin
 
 
 
-				if((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon)){
+				if(true || ((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon))){
 					round_role = "Leech "+round_role;
 					log.debug("This has been identified as a leech run as {}",round_role);
 					leech = true;
@@ -317,6 +321,9 @@ public class BaPBPlugin extends Plugin
 						.runeLiteFormattedMessage("Run identified as " + round_role + " good luck :)")
 						.build());
 				}
+				//log.info(round_role);
+				//log.info(String.valueOf(gameTime.getPBTime()));
+				//log.info(String.valueOf(roleToDouble(round_role)));
 				rolecurrentpb = getCurrentPB(round_role);
 			}
 
@@ -537,10 +544,10 @@ public class BaPBPlugin extends Plugin
 		if(role == "Defender") return .20;
 		if(role == "Collector") return .30;
 		if(role == "Healer") return .40;
-		if(role == "Leech Attacker") return .50;
-		if(role == "Leech Defender") return .60;
-		if(role == "Leech Collector") return .70;
-		if(role == "Leech Healer") return .80;
+		if(role.equals("Leech Attacker")) return .50;
+		if(role.equals("Leech Defender")) return .60;
+		if(role.equals("Leech Collector")) return .70;
+		if(role.equals("Leech Healer")) return .80;
 		if(role == "Main Attacker") return .90;
 		return .00;
 	}
