@@ -59,7 +59,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Text;
-import net.runelite.http.api.chat.ChatClient;
+import net.runelite.client.chat.ChatClient;
 import org.apache.commons.text.WordUtils;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
