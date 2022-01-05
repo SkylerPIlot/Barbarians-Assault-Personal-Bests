@@ -1,5 +1,5 @@
 # Barbarian Assault Personal Bests
-This Plugin serves to replicate the function of the normal barbarian assault plugin function as well as adding the ability 
+This Plugin serves to track all personal best times for most of the common roles people do in funs and leeches and allows them
 to use the following commands.
 
 !ba Barbarian Assault
@@ -10,12 +10,26 @@ to use the following commands.
 
 !ba Defender
 
+!ba Main Attacker This role is identified to first person on the scroll if they are identified as an attacker(usually AAHCD fun order)
+
 !ba Attacker
 
 !ba Recent
 
-The time saved into each one is based on the time shown after w10 is completed and the ability to be saved into a role specific pb can be
-turned on and off though the default is on.
+Shorthand commands for the above
+!ba ba
+!ba h
+!ba c
+!ba d
+!ba a (shows main att pb)
+!ba 2a
 
+These commands show when you do a leech run and those are identified as any runs scrolled as ACHLD(leech order)
+!ba lh
+!ba lc
+!ba ld
+!ba la
+
+Logging of all players in the run including the overall time of the run can be enabled and after enabling found in the .runelite directory
 
 If you find any issues with the plugin please submit an issue in this repository and I will try to look at it an fix it as soon as I can.
