@@ -17,17 +17,27 @@ to use the following commands.
 !ba Recent
 
 Shorthand commands for the above
+
 !ba ba
+
 !ba h
+
 !ba c
+
 !ba d
+
 !ba a (shows main att pb)
+
 !ba 2a
 
 These commands show when you do a leech run and those are identified as any runs scrolled as ACHLD(leech order)
+
 !ba lh
+
 !ba lc
+
 !ba ld
+
 !ba la
 
 Logging of all players in the run including the overall time of the run can be enabled and after enabling found in the .runelite directory
