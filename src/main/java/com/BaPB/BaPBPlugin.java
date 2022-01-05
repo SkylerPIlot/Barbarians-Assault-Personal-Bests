@@ -174,7 +174,7 @@ public class BaPBPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onWidgetLoaded(WidgetLoaded event)
+	public void onWidgetLoaded(WidgetLoaded event) throws IOException//exception required to run .flush()
 	{
 		switch (event.getGroupId())
 		{
@@ -207,7 +207,8 @@ public class BaPBPlugin extends Plugin
 							.append(",")
 							.append(String.valueOf(gameTime.getPBTime()));
 						out.println(str);
-						str = new StringBuilder();;
+						str = new StringBuilder();
+						shutDownActions();//this guarantees the new line is written to disk(prevents having to do weird jank turn plugin on/off behavior)
 					}
 					gameTime = null;
 					leech = false;
