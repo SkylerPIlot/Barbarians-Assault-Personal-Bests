@@ -25,13 +25,12 @@
  */
 package com.BaPB;
 
+import com.google.gson.JsonObject;
 import com.google.inject.Provides;
 import java.awt.Image;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.*;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -42,6 +41,7 @@ import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
+import net.runelite.api.Varbits;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.WidgetClosed;
@@ -54,12 +54,15 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ChatInput;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Text;
 import net.runelite.client.chat.ChatClient;
+import net.runelite.http.api.RuneLiteAPI;
+import okhttp3.*;
 import org.apache.commons.text.WordUtils;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
@@ -78,6 +81,8 @@ public class BaPBPlugin extends Plugin
 	private double currentpb; //This is to load overall pb
 	private double rolecurrentpb; //This is to load role specific pb's and gets set when the role is determined
 	private static final String BA_COMMAND_STRING = "!ba";
+
+	private int gc;
 
 	@Getter(AccessLevel.PACKAGE)
 	private int inGameBit = 0;
@@ -149,6 +154,7 @@ public class BaPBPlugin extends Plugin
 		bw = new BufferedWriter(fw);
 		out = new PrintWriter(bw);
 		//configManager.setRSProfileConfiguration("BaPB", "Recent", roleToDouble("Leech " + "Defender"));
+
 		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
 		scanning = false;
 		str = new StringBuilder();
@@ -233,11 +239,19 @@ public class BaPBPlugin extends Plugin
 	public void onWidgetClosed(WidgetClosed event){
 		if (event.getGroupId() == BaRoleWidget) scanning = false;//sets scanning to false when leaving w1 or leaving for any reason
 	}
-
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event) throws IOException {
+		if(config.SubmitPbs()){
+			submit_pb(gc);
+		}
+	}
 
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
+		if (config.SubmitPbs()){
+		gc = client.getVar(Varbits.BA_GC);
+	}
 		if(scanning) {
 			final String player;
 			player = client.getLocalPlayer().getName();
@@ -605,7 +619,46 @@ public class BaPBPlugin extends Plugin
 		}
 	}
 
+	private void submit_pb(int gc) throws IOException {
 
+
+
+
+		String json = "{\"jwt\":\""+config.api_key()+"\"" +
+				",\"name\":\""+client.getLocalPlayer().getName()+"\"" +
+				",\"Main Attacker\":\""+getCurrentPB("Main Attacker")+"\"" +
+				",\"Attacker\":\""+getCurrentPB("Attacker")+"\"" +
+				",\"Leech Attacker\":\""+getCurrentPB("Leech Attacker")+"\"" +
+				",\"Healer\":\""+getCurrentPB("Healer")+"\"" +
+				",\"Leech Healer\":\""+getCurrentPB("Leech Healer")+"\"" +
+				",\"Defender\":\""+getCurrentPB("Defender")+"\"" +
+				",\"Leech Defender\":\""+getCurrentPB("Leech Defender")+"\"" +
+				",\"Collector\":\""+getCurrentPB("Collector")+"\"" +
+				",\"Leech Collector\":\""+getCurrentPB("Leech Collector")+"\"" +
+				",\"Barbarian Assault\":\""+getCurrentPB("Barbarian Assault")+"\"" +
+				",\"gc\":\""+gc+"\"}";
+		OkHttpClient httpClient = RuneLiteAPI.CLIENT;
+		RequestBody body = RequestBody.create(
+				MediaType.parse("application/json"), json);
+
+		Request request = new Request.Builder()
+				.url("https://babackend.herokuapp.com/submit/pbs")
+				.post(body)
+				.build();
+
+		Call call = httpClient.newCall(request);
+		Response response = call.execute();
+
+		final String chatMessage = new ChatMessageBuilder()
+				.append(ChatColorType.HIGHLIGHT)
+				.append(response.body().string())
+				.build();
+
+		chatMessageManager.queue(QueuedMessage.builder()
+				.type(ChatMessageType.CONSOLE)
+				.runeLiteFormattedMessage(chatMessage)
+				.build());
+	}
 
 
 

@@ -30,9 +30,12 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
 @ConfigGroup("BaPb")
-public interface BaPBConfig extends Config
+public interface
+
+BaPBConfig extends Config
 {
 	@ConfigItem(
+			position = 1,
 		keyName = "baPB",
 		name = "Save role PB different then Overall PB",
 		description = "Turning this on will save your round time into a specific role round time as well as into the overall pb"
@@ -43,15 +46,34 @@ public interface BaPBConfig extends Config
 	}
 
 	@ConfigItem(
+			position = 2,
 		keyName = "msg",
 		name = "Turn round msg on/off",
 		description = "Turning this on will display a nice lil message at the start of the round"
 	)
 		default boolean Message() {return true;}
 	@ConfigItem(
+			position = 3,
 		keyName = "log",
 		name = "logger",
 		description = "ALlows to log your times to a file in your .runelite file turn off/on to update file"
 	)
 	default boolean Logging() {return false;}
+
+	@ConfigItem(
+			position = 4,
+			keyName = "sub_pb",
+			name = "Submit Pbs",
+			description = "This will submit data when checked when a api key is provided below"
+	)
+	default boolean SubmitPbs() { return false; }
+
+	@ConfigItem(
+			position = 5,
+			keyName = "api_key",
+			name = "API Key",
+			description = "Please place a valid API key here, you can get one by requesting it from SkylerMiner"
+	)
+	default String api_key() { return "valid key here"; }
+
 }
