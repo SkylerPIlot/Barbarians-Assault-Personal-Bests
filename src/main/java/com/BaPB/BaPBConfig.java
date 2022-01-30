@@ -64,6 +64,7 @@ BaPBConfig extends Config
 			position = 4,
 			keyName = "sub_pb",
 			name = "Submit Pbs",
+			warning = "This plugin submits your IP address to a 3rd party website not controlled or verified by the RuneLite Developers.",
 			description = "This will submit data when checked when a api key is provided below"
 	)
 	default boolean SubmitPbs() { return false; }
