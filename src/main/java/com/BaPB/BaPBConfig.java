@@ -64,7 +64,7 @@ BaPBConfig extends Config
 			position = 4,
 			keyName = "sub_pb",
 			name = "Submit Pbs",
-			warning = "This plugin submits your IP address to a 3rd party website not controlled or verified by the RuneLite Developers.",
+			warning = "This portion of the plugin submits data to a 3rd part website not controlled or verified by the RuneLite Developers.",
 			description = "This will submit data when checked when a api key is provided below"
 	)
 	default boolean SubmitPbs() { return false; }
@@ -76,5 +76,14 @@ BaPBConfig extends Config
 			description = "Please place a valid API key here, you can get one by requesting it from SkylerMiner"
 	)
 	default String api_key() { return "valid key here"; }
+
+	@ConfigItem(
+		position = 6,
+		keyName = "ba_gc",
+		name = "gc",
+		warning = "This portion of the plugin submits data to a 3rd part website not controlled or verified by the RuneLite Developers.",
+		description = "This allows you to use !ba gc with a value equal to normal gc + "
+	)
+	default boolean baGC() { return false; }
 
 }

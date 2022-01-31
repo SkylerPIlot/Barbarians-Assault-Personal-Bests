@@ -25,7 +25,6 @@
  */
 package com.BaPB;
 
-import com.google.gson.JsonObject;
 import com.google.inject.Provides;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
@@ -112,6 +111,7 @@ public class BaPBPlugin extends Plugin
 	private PrintWriter out;
 	private BufferedWriter bw;
 	private FileWriter fw;
+
 
 
 	@Inject
@@ -242,6 +242,7 @@ public class BaPBPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) throws IOException {
 		if(config.SubmitPbs()){
+
 			submit_pb(gc);
 		}
 	}
@@ -249,9 +250,10 @@ public class BaPBPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		if (config.SubmitPbs()){
-		gc = client.getVar(Varbits.BA_GC);
-	}
+		if(config.SubmitPbs()){
+			gc = client.getVar(Varbits.BA_GC);
+		}
+
 		if(scanning) {
 			final String player;
 			player = client.getLocalPlayer().getName();
@@ -441,6 +443,44 @@ public class BaPBPlugin extends Plugin
 		client.refreshChat();
 	}
 
+	private void gcLookup(ChatMessage chatMessage, String message)
+	{
+
+		ChatMessageType type = chatMessage.getType();
+
+		final String player;
+		if (type == ChatMessageType.PRIVATECHATOUT)
+		{
+			player = client.getLocalPlayer().getName();
+		}
+		else
+		{
+			player = Text.sanitize(chatMessage.getName());
+		}
+
+		int gc;
+		try
+		{
+			gc = grabgc(player);//This is the Network IO
+		}
+		catch (IOException ex)
+		{
+			log.debug("unable to lookup gamble count", ex);
+			return;
+		}
+
+		String response = new ChatMessageBuilder()
+			.append(ChatColorType.NORMAL)
+			.append("Barbarian Assault High-level gambles: ")
+			.append(ChatColorType.HIGHLIGHT)
+			.append(String.format("%,d", gc))
+			.build();
+
+		log.debug("Setting response {}", response);
+		final MessageNode messageNode = chatMessage.getMessageNode();
+		messageNode.setRuneLiteFormatMessage(response);
+		client.refreshChat();
+	}
 
 	void baLookup(ChatMessage chatMessage, String message)
 	{
@@ -463,6 +503,15 @@ public class BaPBPlugin extends Plugin
 		if(search == "Recent"){
 			recentLookup(chatMessage, message);
 			return;
+		}
+
+		if(search == "Gc"){
+			if(config.baGC())
+			{
+				//this function implements the network IO and doesn't work until warning checked.
+				gcLookup(chatMessage, message);
+				return;
+			}
 		}
 
 		net.runelite.http.api.chat.Task task;
@@ -614,15 +663,15 @@ public class BaPBPlugin extends Plugin
 			case "r":
 				return "Recent";
 
+			case "gc":
+				return "Gc";
+
 			default:
 				return WordUtils.capitalize(boss);
 		}
 	}
 
 	private void submit_pb(int gc) throws IOException {
-
-
-
 
 		String json = "{\"jwt\":\""+config.api_key()+"\"" +
 				",\"name\":\""+client.getLocalPlayer().getName()+"\"" +
@@ -658,6 +707,27 @@ public class BaPBPlugin extends Plugin
 				.type(ChatMessageType.CONSOLE)
 				.runeLiteFormattedMessage(chatMessage)
 				.build());
+	}
+
+
+	int grabgc(String name) throws IOException
+	{
+		String json = "{\"jwt\":\""+config.api_key()+"\"" +
+						",\"player_name\":\""+name+"\"}";
+		OkHttpClient httpClient = RuneLiteAPI.CLIENT;
+		RequestBody body = RequestBody.create(
+			MediaType.parse("application/json"), json);
+
+		Request request = new Request.Builder()
+			.url("https://babackend.herokuapp.com/grab/gc")
+			.post(body)
+			.build();
+
+		Call call = httpClient.newCall(request);
+		Response response = call.execute();
+
+		return Integer.parseInt(response.body().string());
+
 	}
 
 
