@@ -82,7 +82,7 @@ BaPBConfig extends Config
 		keyName = "ba_gc",
 		name = "gc",
 		warning = "This portion of the plugin submits data to a 3rd part website not controlled or verified by the RuneLite Developers.",
-		description = "This allows you to use !ba gc with a value equal to normal gc + "
+		description = "This allows you to use !ba gc with a value equal to normal gc + alt gamble count, given you've uploaded alt gc to the database"
 	)
 	default boolean baGC() { return false; }
 
