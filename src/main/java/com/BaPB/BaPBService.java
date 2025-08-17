@@ -1,0 +1,226 @@
+package com.BaPB;
+
+import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
+import lombok.extern.slf4j.Slf4j;
+import okhttp3.*;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+
+@Slf4j
+public class BaPBService
+{
+    private static final String TOKEN_ISSUER_URL   = "https://osrs-ba-api-7f97e40f532b.herokuapp.com/api/v1/tokens/public/";
+    private static final String SUBMIT_RUN_URL   = "https://osrs-ba-api-7f97e40f532b.herokuapp.com/api/v1/rounds/";
+
+    private static final String SIGNING_SECRET = "ba-4-all";
+    private String cachedToken = null;
+    private Instant cachedTokenExpiry = null;
+
+    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+    private final OkHttpClient http = new OkHttpClient();
+    private final ExecutorService executor;
+    private final Gson gson = new Gson();
+
+    public BaPBService()
+    {
+        this.executor = Executors.newSingleThreadExecutor();
+    }
+
+    public void shutdown()
+    {
+        executor.shutdown();
+    }
+
+    private boolean isTokenValid()
+    {
+        if (cachedToken == null || cachedToken.isEmpty()) return false;
+        if (cachedTokenExpiry == null ) return false;
+
+        // Expire 30 seconds early to avoid edge cases
+        Instant bufferExpiry = cachedTokenExpiry.minusSeconds(30);
+        return Instant.now().isBefore(bufferExpiry);
+    }
+
+    private void fetchToken(String currentPlayer) throws Exception
+    {
+        String timestamp = String.valueOf(Instant.now().toEpochMilli());
+        String nonce = UUID.randomUUID().toString();
+        String signature = generateHmacSha256(SIGNING_SECRET, timestamp + nonce);
+
+        // Create JSON body
+        Map<String, String> bodyMap = new HashMap<>();
+        bodyMap.put("description", currentPlayer);
+        String jsonBody = gson.toJson(bodyMap);
+
+        RequestBody body = RequestBody.create(JSON, jsonBody);
+
+        Request req = new Request.Builder()
+                .url(TOKEN_ISSUER_URL)
+                .header("X-Timestamp", timestamp)
+                .header("X-Nonce", nonce)
+                .header("X-Signature", signature)
+                .post(body)
+                .build();
+
+        try (Response resp = http.newCall(req).execute())
+        {
+            if (!resp.isSuccessful() || resp.body() == null)
+                throw new RuntimeException("Failed to fetch API token: " + resp.code() + " " + resp.message());
+
+
+            String rawResponse = resp.body().string();  // read raw response
+
+            log.debug("Raw API response: {}", rawResponse);
+
+            TokenWrapper wrapper = gson.fromJson(rawResponse, TokenWrapper.class);
+            if (wrapper == null || wrapper.data == null || wrapper.data.token == null || wrapper.data.token.isEmpty())
+                throw new RuntimeException("Token issuer returned no 'token' key");
+
+            cachedToken = wrapper.data.token;
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS");
+            LocalDateTime ldt = LocalDateTime.parse(wrapper.data.expiresAt, formatter);
+            cachedTokenExpiry = ldt.toInstant(ZoneOffset.UTC);
+        }
+    }
+
+    private void submitRunToAPI(
+            Map<String, String> currentTeam,
+            String roundFormat,
+            double gameTime,
+            String submittedBy,
+            String userUuid
+    ) throws IOException
+    {
+        List<PlayerEntry> players = new ArrayList<>();
+        for (Map.Entry<String, String> e : currentTeam.entrySet())
+        {
+            String uuid = (userUuid != null && e.getKey().equals(submittedBy)) ? userUuid : null;
+            players.add(new PlayerEntry(e.getKey(), e.getValue(), uuid));
+        }
+
+        SubmitPayload payload = new SubmitPayload(
+                roundFormat,
+                gameTime,
+                submittedBy,
+                players
+        );
+
+        RequestBody body = RequestBody.create(JSON, gson.toJson(payload));
+        Request req = new Request.Builder()
+                .url(SUBMIT_RUN_URL)
+                .addHeader("Authorization", "Bearer " + cachedToken)
+                .post(body)
+                .build();
+
+        try (Response resp = http.newCall(req).execute())
+        {
+            if (resp.isSuccessful())
+            {
+                log.info("Successfully submitted run to API");
+            }
+            else
+            {
+                log.warn("API submission failed: {} {}", resp.code(), resp.message());
+            }
+        }
+    }
+
+    public void handleRoundEnd(
+            Map<String, String> currentTeam,
+            String roundFormat,
+            double gameTime,
+            String submittedBy,
+            String userUuid
+    )
+    {
+        executor.execute(() -> {
+            try {
+                // Validate token
+                if (!isTokenValid()) {
+                    log.info("API token invalid or expired. Fetching a new one...");
+                    fetchToken(submittedBy);
+                }
+
+                submitRunToAPI(currentTeam, roundFormat, gameTime, submittedBy, userUuid);
+
+            } catch (Exception e) {
+                log.warn("Failed during token check or run submission", e);
+            }
+        });
+    }
+
+    private String generateHmacSha256(String key, String data) throws Exception
+    {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        byte[] rawHmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+        return Base64.getEncoder().encodeToString(rawHmac);
+    }
+
+    private static class TokenWrapper {
+        String status;
+        TokenResponse data;
+        Object error;
+    }
+
+    private static class TokenResponse
+    {
+        @SerializedName("token")
+        String token;
+
+        @SerializedName("expires_at")
+        String expiresAt;
+    }
+
+    private static class PlayerEntry
+    {
+        @SerializedName("character_name")
+        final String characterName;
+
+        @SerializedName("role")
+        final String role;
+
+        @SerializedName("uuid_key")
+        final String uuidKey; // optional
+
+        PlayerEntry(String characterName, String role, String uuidKey)
+        {
+            this.characterName = characterName;
+            this.role = role;
+            this.uuidKey = uuidKey;
+        }
+    }
+
+    private static class SubmitPayload
+    {
+        @SerializedName("format")
+        final String format;
+        @SerializedName("round_time")
+        final double roundTime;
+        @SerializedName("submitted_by")
+        final String submittedBy;
+        @SerializedName("players")
+        final List<PlayerEntry> players;
+
+        SubmitPayload(String format, double roundTime, String submittedBy, List<PlayerEntry> players)
+        {
+            this.format = format;
+            this.roundTime = roundTime;
+            this.submittedBy = submittedBy;
+            this.players = players;
+        }
+    }
+}

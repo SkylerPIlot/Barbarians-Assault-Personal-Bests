@@ -34,6 +34,8 @@ import java.time.Instant;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.Map;
+import java.util.HashMap;
 import javax.inject.Inject;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -83,11 +85,14 @@ public class BaPBPlugin extends Plugin
 	@Getter(AccessLevel.PACKAGE)
 	private int inGameBit = 0;
 	private String currentWave = START_WAVE;
-	private GameTimer gameTime;
+    private GameTimer gameTime = new GameTimer();
+    BaPBService service = new BaPBService();
 	private String round_role;
 	private Boolean scanning;
 	private int round_roleID;
-	private Boolean leech;
+	private String roundFormat;
+    private Map<String, String> currentTeam = new HashMap<>();
+    private Boolean isLeader = false;
 	//defines all of my specific widgets and icon names could I do it better yes, but like it works
 	private Integer BaRoleWidget = 256;
 	private Integer BaScrollWidget = 159;
@@ -155,6 +160,7 @@ public class BaPBPlugin extends Plugin
 		chatCommandManager.registerCommandAsync(BA_COMMAND_STRING, this::baLookup, this::baSubmit);
 		scanning = false;
 		str = new StringBuilder();
+        currentTeam.clear();
 	}
 
 	@Override
@@ -167,6 +173,8 @@ public class BaPBPlugin extends Plugin
 		bw.close();
 		fw.close();
 		str = new StringBuilder();
+        currentTeam.clear();
+        service.shutdown();
 	}
 
 	private void shutDownActions() throws IOException
@@ -185,43 +193,48 @@ public class BaPBPlugin extends Plugin
 			{
 				Widget rewardWidget = client.getWidget(WidgetInfo.BA_REWARD_TEXT);
 
-				if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime != null)
+				if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime.getElapsedSeconds(isLeader) > 0)
 				{
-					if ((gameTime.getPBTime() < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
+                    gameTime.stop();
+                    log.debug("gameTime final duration is {}", gameTime.getElapsedSeconds(isLeader));
+					if ((gameTime.getElapsedSeconds(isLeader) < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
 					{
-						configManager.setRSProfileConfiguration("BaPB", round_role, gameTime.getPBTime());
-						log.debug("Personal best of: {} saved in {}",gameTime.getPBTime(), round_role);
+						configManager.setRSProfileConfiguration("BaPB", round_role, gameTime.getElapsedSeconds(isLeader));
+						log.debug("Personal best of: {} saved in {}",gameTime.getElapsedSeconds(isLeader), round_role);
 					}
 					currentpb = getCurrentPB("Barbarian Assault");
-					if ((gameTime.getPBTime() < currentpb || currentpb == 0.0))
+					if ((gameTime.getElapsedSeconds(isLeader) < currentpb || currentpb == 0.0))
 					{
-						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getPBTime());
-						log.debug("Personal best of: {} saved in Barbarian Assault",gameTime.getPBTime());
+						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getElapsedSeconds(isLeader));
+						log.debug("Personal best of: {} saved in Barbarian Assault",gameTime.getElapsedSeconds(isLeader));
 					}
 					//log.info(round_role);
 					//log.info(String.valueOf(gameTime.getPBTime()));
 					//log.info(String.valueOf(roleToDouble(round_role)));
 					//log.info(String.valueOf((gameTime.getPBTime() + roleToDouble(round_role))));
-					configManager.setRSProfileConfiguration("BaPB", "Recent", (double)(gameTime.getPBTime() + roleToDouble(round_role)));
+					configManager.setRSProfileConfiguration("BaPB", "Recent", gameTime.getElapsedSeconds(isLeader));
 					if(config.Logging())
 					{
 						str
 							.append(Instant.now().toString())
 							.append(",")
-							.append(String.valueOf(gameTime.getPBTime()));
+							.append(String.valueOf(gameTime.getElapsedSeconds(isLeader)));
 						out.println(str);
 						str = new StringBuilder();
 						shutDownActions();//this guarantees the new line is written to disk(prevents having to do weird jank turn plugin on/off behavior)
 					}
-					gameTime = null;
-					leech = false;
+
+                    if (config.SubmitRuns() && roundFormat != null) {
+                        service.handleRoundEnd(currentTeam, roundFormat, gameTime.getElapsedSeconds(isLeader), client.getLocalPlayer().getName(), config.uuid_key());
+                    }
+					roundFormat = null;
 				}
 
 				break;
 			}
 			case WidgetID.BA_TEAM_GROUP_ID: {
 				scanning = true;
-				leech = false;
+				roundFormat = null;
 			}
 			case 159: {//this is to set scanning true when scroll is used on someone
 				scanning = true;
@@ -236,21 +249,11 @@ public class BaPBPlugin extends Plugin
 	public void onWidgetClosed(WidgetClosed event){
 		if (event.getGroupId() == BaRoleWidget) scanning = false;//sets scanning to false when leaving w1 or leaving for any reason
 	}
-	@Subscribe
-	public void onConfigChanged(ConfigChanged event) throws IOException {
-		if(config.SubmitPbs()){
-			if(gc > 0 && client.getGameState() == GameState.LOGGED_IN) {
-				submit_pb(gc);
-			}
-		}
-	}
 
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		if(config.SubmitPbs()){
-			gc = client.getVar(Varbits.BA_GC);
-		}
+        gameTime.onGameTick();
 
 		if(scanning) {
 			final String player;
@@ -320,15 +323,57 @@ public class BaPBPlugin extends Plugin
 				if((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == collectorIcon)&&(player2Icon.getModelId() == healerIcon)&&(player4Icon.getModelId() == defenderIcon)){
 					round_role = "Leech "+round_role;
 					log.debug("This has been identified as a leech run as {}",round_role);
-					leech = true;
-				}
+					roundFormat = "leech";
+				} else if ((leaderIcon.getModelId() == attackerIcon)&&(player1Icon.getModelId() == attackerIcon)&&(player2Icon.getModelId() == healerIcon)&&(player3Icon.getModelId() == collectorIcon)&&(player4Icon.getModelId() == defenderIcon)) {
+                    log.debug("This has been identified as a five man run as {}",round_role);
+                    roundFormat = "five_man";
+                } else {
+                    roundFormat = null;
+                }
 
 
-				if((player.contains(leader.getText()) && leaderIcon.getModelId() == attackerIcon) && !leech){
-					round_role = "Main Attacker";
-					log.debug("You have been identified as Main Attacker");
+                if(player.contains(leader.getText())){
+                    if (leaderIcon.getModelId() == attackerIcon && !"leech".equals(roundFormat)) {
+                        round_role = "Main Attacker";
+                        log.debug("You have been identified as Main Attacker");
+                    }
+                    isLeader = true;
+				} else {
+                    isLeader = false;
+                }
 
-				}
+                // Save team data for API call
+                if(config.SubmitRuns())
+                {
+                    currentTeam.clear();
+
+                    // Only save current team if leech / five_man
+                    if ("five_man".equals(roundFormat) || "leech".equals(roundFormat)) {
+                        // Change to Main/2nd Attackers for 5 man
+                        if ("five_man".equals(roundFormat)) {
+                            // We've already validated the team composition so just set them manually
+                            currentTeam.put(leader.getText(), "Main Attacker");
+                            currentTeam.put(player1.getText(), "2nd Attacker");
+                        } else {
+                            currentTeam.put(leader.getText(), IDfinder(leaderIcon.getModelId()));
+                            currentTeam.put(player1.getText(), IDfinder(player1Icon.getModelId()));
+                        }
+
+                        currentTeam.put(player2.getText(), IDfinder(player2Icon.getModelId()));
+
+                        // Player 3 omitted if leech
+                        if ("five_man".equals(roundFormat)) {
+                            currentTeam.put(player3.getText(), IDfinder(player3Icon.getModelId()));
+                        }
+
+                        currentTeam.put(player4.getText(), IDfinder(player4Icon.getModelId()));
+                        log.debug("Current Team: {}", currentTeam);
+                    } else {
+                        log.debug("Not a valid leech or five man run");
+                    }
+                }
+
+
 				if(config.Message())
 				{
 					chatMessageManager.queue(QueuedMessage.builder()
@@ -345,8 +390,8 @@ public class BaPBPlugin extends Plugin
 
 
 
-			}
-		}
+        }
+    }
 
 
 	@Subscribe
@@ -360,7 +405,7 @@ public class BaPBPlugin extends Plugin
 
 			if (currentWave.equals(START_WAVE))
 			{
-				gameTime = new GameTimer();
+                gameTime.start();
 			}
 		}
 	}
@@ -441,45 +486,6 @@ public class BaPBPlugin extends Plugin
 		client.refreshChat();
 	}
 
-	private void gcLookup(ChatMessage chatMessage, String message)
-	{
-
-		ChatMessageType type = chatMessage.getType();
-
-		final String player;
-		if (type == ChatMessageType.PRIVATECHATOUT)
-		{
-			player = client.getLocalPlayer().getName();
-		}
-		else
-		{
-			player = Text.sanitize(chatMessage.getName());
-		}
-
-		int gc;
-		try
-		{
-			gc = grabgc(player);//This is the Network IO
-		}
-		catch (IOException ex)
-		{
-			log.debug("unable to lookup gamble count", ex);
-			return;
-		}
-
-		String response = new ChatMessageBuilder()
-			.append(ChatColorType.NORMAL)
-			.append("Barbarian Assault High-level gambles: ")
-			.append(ChatColorType.HIGHLIGHT)
-			.append(String.format("%,d", gc))
-			.build();
-
-		log.debug("Setting response {}", response);
-		final MessageNode messageNode = chatMessage.getMessageNode();
-		messageNode.setRuneLiteFormatMessage(response);
-		client.refreshChat();
-	}
-
 	void baLookup(ChatMessage chatMessage, String message)
 	{
 
@@ -501,15 +507,6 @@ public class BaPBPlugin extends Plugin
 		if(search == "Recent"){
 			recentLookup(chatMessage, message);
 			return;
-		}
-
-		if(search == "Gc"){
-			if(config.baGC())
-			{
-				//this function implements the network IO and doesn't work until warning checked.
-				gcLookup(chatMessage, message);
-				return;
-			}
 		}
 
 		net.runelite.http.api.chat.Task task;
@@ -601,19 +598,6 @@ public class BaPBPlugin extends Plugin
 		return "Please relaunch client and do another run to fix this bug";
 	}
 
-	private double roleToDouble(String role){
-		if(role == "Attacker") return .10;
-		if(role == "Defender") return .20;
-		if(role == "Collector") return .30;
-		if(role == "Healer") return .40;
-		if(role.equals("Leech Attacker")) return .50;
-		if(role.equals("Leech Defender")) return .60;
-		if(role.equals("Leech Collector")) return .70;
-		if(role.equals("Leech Healer")) return .80;
-		if(role == "Main Attacker") return .90;
-		return .00;
-	}
-
 
 	private static String longBossName(String boss)
 	{
@@ -667,65 +651,6 @@ public class BaPBPlugin extends Plugin
 			default:
 				return WordUtils.capitalize(boss);
 		}
-	}
-
-	private void submit_pb(int gc) throws IOException {
-
-		String json = "{\"jwt\":\""+config.api_key()+"\"" +
-				",\"name\":\""+client.getLocalPlayer().getName()+"\"" +
-				",\"Main Attacker\":\""+getCurrentPB("Main Attacker")+"\"" +
-				",\"Attacker\":\""+getCurrentPB("Attacker")+"\"" +
-				",\"Leech Attacker\":\""+getCurrentPB("Leech Attacker")+"\"" +
-				",\"Healer\":\""+getCurrentPB("Healer")+"\"" +
-				",\"Leech Healer\":\""+getCurrentPB("Leech Healer")+"\"" +
-				",\"Defender\":\""+getCurrentPB("Defender")+"\"" +
-				",\"Leech Defender\":\""+getCurrentPB("Leech Defender")+"\"" +
-				",\"Collector\":\""+getCurrentPB("Collector")+"\"" +
-				",\"Leech Collector\":\""+getCurrentPB("Leech Collector")+"\"" +
-				",\"Barbarian Assault\":\""+getCurrentPB("Barbarian Assault")+"\"" +
-				",\"gc\":\""+gc+"\"}";
-		OkHttpClient httpClient = RuneLiteAPI.CLIENT;
-		RequestBody body = RequestBody.create(
-				MediaType.parse("application/json"), json);
-
-		Request request = new Request.Builder()
-				.url("https://babackend.herokuapp.com/submit/pbs")
-				.post(body)
-				.build();
-
-		Call call = httpClient.newCall(request);
-		Response response = call.execute();
-
-		final String chatMessage = new ChatMessageBuilder()
-				.append(ChatColorType.HIGHLIGHT)
-				.append(response.body().string())
-				.build();
-
-		chatMessageManager.queue(QueuedMessage.builder()
-				.type(ChatMessageType.CONSOLE)
-				.runeLiteFormattedMessage(chatMessage)
-				.build());
-	}
-
-
-	int grabgc(String name) throws IOException
-	{
-		String json = "{\"jwt\":\""+config.api_key()+"\"" +
-						",\"player_name\":\""+name+"\"}";
-		OkHttpClient httpClient = RuneLiteAPI.CLIENT;
-		RequestBody body = RequestBody.create(
-			MediaType.parse("application/json"), json);
-
-		Request request = new Request.Builder()
-			.url("https://babackend.herokuapp.com/grab/gc")
-			.post(body)
-			.build();
-
-		Call call = httpClient.newCall(request);
-		Response response = call.execute();
-
-		return Integer.parseInt(response.body().string());
-
 	}
 
 
