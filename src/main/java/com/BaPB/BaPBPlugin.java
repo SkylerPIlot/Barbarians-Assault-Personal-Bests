@@ -212,7 +212,7 @@ public class BaPBPlugin extends Plugin
 					//log.info(String.valueOf(gameTime.getPBTime()));
 					//log.info(String.valueOf(roleToDouble(round_role)));
 					//log.info(String.valueOf((gameTime.getPBTime() + roleToDouble(round_role))));
-					configManager.setRSProfileConfiguration("BaPB", "Recent", gameTime.getElapsedSeconds(isLeader));
+					configManager.setRSProfileConfiguration("BaPB", "Recent", (gameTime.getElapsedSeconds(isLeader) + roleToDouble(round_role)));
 					if(config.Logging())
 					{
 						str
@@ -254,6 +254,7 @@ public class BaPBPlugin extends Plugin
 	public void onGameTick(GameTick event)
 	{
         gameTime.onGameTick();
+        log.debug("GameTime: {}", gameTime.getElapsedSeconds(isLeader));
 
 		if(scanning) {
 			final String player;
@@ -451,23 +452,19 @@ public class BaPBPlugin extends Plugin
 			return;
 		}
 
-		//now we grab the current role which was saved in the .xx of the double :)
-		double roleDouble = BaPb - (int)BaPb;
-		//gotta round it cause of course we do
-		roleDouble = Math.round(roleDouble*100.0)/100.0;
+		//now we grab the current role which was saved in the ._x of the double :)
+        int hundredthsDigit = ((int) Math.round(BaPb * 100)) % 10;
+
+		double roleDouble = hundredthsDigit / 100.0;
 
 		log.debug(String.valueOf(roleDouble));
 		String role = doubleToRole(roleDouble);
 
-
 		int minutes = (int) (Math.floor(BaPb) / 60);
-		double seconds = (int)BaPb % 60;
+		int seconds = (int)BaPb % 60;
+        int decimal = (int) ((BaPb * 10) % 10);
 
-		// If the seconds is an integer, it is ambiguous if the pb is a precise
-		// pb or not. So we always show it without the trailing .00.
-		final String time = Math.floor(seconds) == seconds ?
-			String.format("%d:%02d", minutes, (int) seconds) :
-			String.format("%d:%05.2f", minutes, seconds);
+		final String time =  String.format("%d:%02d.%d", minutes, seconds, decimal);
 
 		String response = new ChatMessageBuilder()
 			.append(ChatColorType.HIGHLIGHT)
@@ -586,17 +583,30 @@ public class BaPBPlugin extends Plugin
 	}
 
 	private String doubleToRole(double time){
-        if(time == .10) return "Attacker";
-		if(time == .20) return "Defender";
-		if(time == .30) return "Collector";
-		if(time == .40) return "Healer";
-		if(time == .50) return "Leech Attacker";
-		if(time == .60) return "Leech Defender";
-		if(time == .70) return "Leech Collector";
-		if(time == .80) return "Leech Healer";
-		if(time == .90) return "Main Attacker";
+        if(time == .01) return "Attacker";
+		if(time == .02) return "Defender";
+		if(time == .03) return "Collector";
+		if(time == .04) return "Healer";
+		if(time == .05) return "Leech Attacker";
+		if(time == .06) return "Leech Defender";
+		if(time == .07) return "Leech Collector";
+		if(time == .08) return "Leech Healer";
+		if(time == .09) return "Main Attacker";
 		return "Please relaunch client and do another run to fix this bug";
 	}
+
+    private double roleToDouble(String role){
+        if(role.equals("Attacker")) return .01;
+        if(role.equals("Defender")) return .02;
+        if(role.equals("Collector")) return .03;
+        if(role.equals("Healer")) return .04;
+        if(role.equals("Leech Attacker")) return .05;
+        if(role.equals("Leech Defender")) return .06;
+        if(role.equals("Leech Collector")) return .07;
+        if(role.equals("Leech Healer")) return .08;
+        if(role.equals("Main Attacker")) return .09;
+        return .00;
+    }
 
 
 	private static String longBossName(String boss)
