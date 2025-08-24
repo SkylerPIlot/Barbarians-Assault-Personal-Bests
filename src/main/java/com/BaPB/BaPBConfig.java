@@ -59,31 +59,4 @@ BaPBConfig extends Config
 		description = "ALlows to log your times to a file in your .runelite file turn off/on to update file"
 	)
 	default boolean Logging() {return false;}
-
-	@ConfigItem(
-			position = 4,
-			keyName = "sub_pb",
-			name = "Submit Pbs",
-			warning = "This portion of the plugin submits data to a 3rd part website not controlled or verified by the RuneLite Developers.",
-			description = "This will submit data when checked when a api key is provided below"
-	)
-	default boolean SubmitPbs() { return false; }
-
-	@ConfigItem(
-			position = 5,
-			keyName = "api_key",
-			name = "API Key",
-			description = "Please place a valid API key here, you can get one by requesting it from SkylerMiner"
-	)
-	default String api_key() { return "valid key here"; }
-
-	@ConfigItem(
-		position = 6,
-		keyName = "ba_gc",
-		name = "gc",
-		warning = "This portion of the plugin submits data to a 3rd part website not controlled or verified by the RuneLite Developers.",
-		description = "This allows you to use !ba gc with a value equal to normal gc + alt gamble count, given you've uploaded alt gc to the database"
-	)
-	default boolean baGC() { return false; }
-
 }
