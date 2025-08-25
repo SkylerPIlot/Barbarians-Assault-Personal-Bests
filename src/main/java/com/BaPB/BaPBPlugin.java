@@ -37,9 +37,8 @@ import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.WidgetClosed;
 import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetID;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.chat.*;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -172,10 +171,9 @@ public class BaPBPlugin extends Plugin
 	{
 		switch (event.getGroupId())
 		{
-			case WidgetID.BA_REWARD_GROUP_ID:
+			case InterfaceID.BARBASSAULT_WAVECOMPLETE:
 			{
-				Widget rewardWidget = client.getWidget(WidgetInfo.BA_REWARD_TEXT);
-
+				Widget rewardWidget = client.getWidget(InterfaceID.BarbassaultWavecomplete.BARBASSAULT_COMPL_QUEENREWARDS);
 				if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime != null)
 				{
 					if ((gameTime.getPBTime() < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
@@ -210,7 +208,7 @@ public class BaPBPlugin extends Plugin
 
 				break;
 			}
-			case WidgetID.BA_TEAM_GROUP_ID: {
+			case InterfaceID.BARBASSAULT_OVER_RECRUIT_PLAYER_NAMES: {
 				scanning = true;
 				leech = false;
 			}
@@ -416,7 +414,6 @@ public class BaPBPlugin extends Plugin
 		log.debug("Setting response {}", response);
 		final MessageNode messageNode = chatMessage.getMessageNode();
 		messageNode.setRuneLiteFormatMessage(response);
-		chatMessageManager.update(messageNode);
 		client.refreshChat();
 	}
 
