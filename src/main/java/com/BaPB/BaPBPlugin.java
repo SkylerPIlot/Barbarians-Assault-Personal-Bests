@@ -26,13 +26,8 @@
 package com.BaPB;
 
 import com.google.inject.Provides;
-import java.awt.Image;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.time.Instant;
-import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.Map;
 import java.util.HashMap;
@@ -44,23 +39,18 @@ import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.WidgetClosed;
 import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetID;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.chat.*;
 import net.runelite.client.config.ConfigManager;
-import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ChatInput;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Text;
 import net.runelite.client.chat.ChatClient;
-import net.runelite.http.api.RuneLiteAPI;
-import okhttp3.*;
 import org.apache.commons.text.WordUtils;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
@@ -189,10 +179,9 @@ public class BaPBPlugin extends Plugin
 	{
 		switch (event.getGroupId())
 		{
-			case WidgetID.BA_REWARD_GROUP_ID:
+			case InterfaceID.BARBASSAULT_WAVECOMPLETE:
 			{
-				Widget rewardWidget = client.getWidget(WidgetInfo.BA_REWARD_TEXT);
-
+                Widget rewardWidget = client.getWidget(InterfaceID.BarbassaultWavecomplete.BARBASSAULT_COMPL_QUEENREWARDS);
 				if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime.getElapsedSeconds(isLeader) > 0)
 				{
                     gameTime.stop();
@@ -232,7 +221,7 @@ public class BaPBPlugin extends Plugin
 
 				break;
 			}
-			case WidgetID.BA_TEAM_GROUP_ID: {
+			case InterfaceID.BARBASSAULT_OVER_RECRUIT_PLAYER_NAMES: {
 				scanning = true;
 				roundFormat = null;
 			}
@@ -254,7 +243,6 @@ public class BaPBPlugin extends Plugin
 	public void onGameTick(GameTick event)
 	{
         gameTime.onGameTick();
-        log.debug("GameTime: {}", gameTime.getElapsedSeconds(isLeader));
 
 		if(scanning) {
 			final String player;
@@ -479,7 +467,6 @@ public class BaPBPlugin extends Plugin
 		log.debug("Setting response {}", response);
 		final MessageNode messageNode = chatMessage.getMessageNode();
 		messageNode.setRuneLiteFormatMessage(response);
-		chatMessageManager.update(messageNode);
 		client.refreshChat();
 	}
 
@@ -538,7 +525,6 @@ public class BaPBPlugin extends Plugin
 		log.debug("Setting response {}", response);
 		final MessageNode messageNode = chatMessage.getMessageNode();
 		messageNode.setRuneLiteFormatMessage(response);
-		chatMessageManager.update(messageNode);
 		client.refreshChat();
 	}
 	private boolean baSubmit(ChatInput chatInput, String value)
@@ -662,7 +648,4 @@ public class BaPBPlugin extends Plugin
 				return WordUtils.capitalize(boss);
 		}
 	}
-
-
-
 }
