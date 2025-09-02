@@ -24,18 +24,45 @@
  */
 package com.BaPB;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
+
 import static net.runelite.client.util.RSTimeUnit.GAME_TICKS;
 
-class GameTimer
+@Slf4j
+public class GameTimer
 {
-	final private Instant startTime = Instant.now();
-	int getPBTime()
-	{
-		return (int)Duration.between(startTime, Instant.now()).minus(Duration.of(1, GAME_TICKS)).getSeconds();
-	}
+    private int roundTicks = 0;
+    private boolean running = false;
+
+    public void start()
+    {
+        roundTicks = 0;
+        running = true;
+    }
+
+    public void stop()
+    {
+        running = false;
+    }
+
+    public void onGameTick()
+    {
+        if (running)
+        {
+            roundTicks++;
+        }
+    }
+
+    public double getElapsedSeconds(Boolean isLeader)
+    {
+        // The number of ticks to remove is +1 if leader. May have to do with timing of loading in/out
+        int numTicks = isLeader ? 2 : 1;
+        int adjustedTicks = Math.max(0, roundTicks - numTicks);
+
+        Duration duration = Duration.of(adjustedTicks, GAME_TICKS);
+        return duration.toMillis() / 1000.0;
+    }
 
 }
