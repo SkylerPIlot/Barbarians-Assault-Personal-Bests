@@ -56,7 +56,25 @@ BaPBConfig extends Config
 			position = 3,
 		keyName = "log",
 		name = "logger",
-		description = "ALlows to log your times to a file in your .runelite file turn off/on to update file"
+		description = "Allows to log your times to a file in your .runelite file turn off/on to update file"
 	)
 	default boolean Logging() {return false;}
+
+	@ConfigItem(
+			position = 4,
+			keyName = "sub_runs",
+			name = "Submit Runs",
+			warning = "This portion of the plugin submits data to a 3rd part website not controlled or verified by the RuneLite Developers.",
+			description = "This will submit runs to osrs-ba.com"
+	)
+	default boolean SubmitRuns() { return false; }
+
+	@ConfigItem(
+			position = 5,
+			keyName = "uuid_key",
+			name = "UUID Key",
+			description = "Key used for linking ALT accounts, you can get one by logging into osrs-ba.com/accounts. Only used when \"Submit Runs\" is enabled."
+	)
+	default String uuid_key() { return null; }
+
 }
