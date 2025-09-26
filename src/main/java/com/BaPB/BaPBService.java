@@ -7,6 +7,7 @@ import okhttp3.*;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -29,13 +30,15 @@ public class BaPBService
 
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
-    private final OkHttpClient http = new OkHttpClient();
-    private final ExecutorService executor;
-    private final Gson gson = new Gson();
+    private final OkHttpClient http;
+    private final Gson gson;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    public BaPBService()
+    @Inject
+    public BaPBService(OkHttpClient http, Gson gson)
     {
-        this.executor = Executors.newSingleThreadExecutor();
+        this.http = http;
+        this.gson = gson;
     }
 
     public void shutdown()
