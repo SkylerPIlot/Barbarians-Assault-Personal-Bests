@@ -76,7 +76,6 @@ public class BaPBPlugin extends Plugin
 	private int inGameBit = 0;
 	private String currentWave = START_WAVE;
     private GameTimer gameTime = new GameTimer();
-    BaPBService service = new BaPBService();
 	private String round_role;
 	private Boolean scanning;
 	private int round_roleID;
@@ -129,6 +128,9 @@ public class BaPBPlugin extends Plugin
 
 	@Inject
 	private ScheduledExecutorService executor;
+
+    @Inject
+    private BaPBService service;
 
 	@Provides
 	BaPBConfig provideConfig(ConfigManager configManager)
