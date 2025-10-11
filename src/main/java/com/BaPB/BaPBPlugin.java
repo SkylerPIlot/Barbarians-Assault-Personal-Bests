@@ -35,6 +35,7 @@ import javax.inject.Inject;
 import lombok.AccessLevel;
 import lombok.Getter;
 import net.runelite.api.*;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.WidgetClosed;
@@ -64,18 +65,26 @@ import static net.runelite.client.RuneLite.RUNELITE_DIR;
 public class BaPBPlugin extends Plugin
 {
 	private static final int BA_WAVE_NUM_INDEX = 2;
-	private static final String START_WAVE = "1";
+	private static final int START_WAVE = 1;
+    private static final int PREMOVE_Y_THRESHOLD = 5300;
 	private static final String ENDGAME_REWARD_NEEDLE_TEXT = "<br>5";
 	private double currentpb; //This is to load overall pb
 	private double rolecurrentpb; //This is to load role specific pb's and gets set when the role is determined
 	private static final String BA_COMMAND_STRING = "!ba";
 
+    // Constants for role-specific widget group IDs
+    private static final int BA_ATTACKER_GROUP_ID = 485;
+    private static final int BA_COLLECTOR_GROUP_ID = 486;
+    private static final int BA_DEFENDER_GROUP_ID = 487;
+    private static final int BA_HEALER_GROUP_ID = 488;
+
 	private int gc;
 
 	@Getter(AccessLevel.PACKAGE)
 	private int inGameBit = 0;
-	private String currentWave = START_WAVE;
-    private GameTimer gameTime = new GameTimer();
+    private int currentWave = 0;
+    private Timers timers = new Timers();
+    private Lobby lobby = new Lobby();
 	private String round_role;
 	private Boolean scanning;
 	private int round_roleID;
@@ -153,6 +162,7 @@ public class BaPBPlugin extends Plugin
 		scanning = false;
 		str = new StringBuilder();
         currentTeam.clear();
+        timers.resetAll();
 	}
 
 	@Override
@@ -166,6 +176,7 @@ public class BaPBPlugin extends Plugin
 		fw.close();
 		str = new StringBuilder();
         currentTeam.clear();
+        timers.resetAll();
         service.shutdown();
 	}
 
@@ -184,39 +195,40 @@ public class BaPBPlugin extends Plugin
 			case InterfaceID.BARBASSAULT_WAVECOMPLETE:
 			{
                 Widget rewardWidget = client.getWidget(InterfaceID.BarbassaultWavecomplete.BARBASSAULT_COMPL_QUEENREWARDS);
-				if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && gameTime.getElapsedSeconds(isLeader) > 0)
+                double roundSeconds = timers.getRoundSeconds(isLeader);
+                if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && roundSeconds > 0)
 				{
-                    gameTime.stop();
-                    log.debug("gameTime final duration is {}", gameTime.getElapsedSeconds(isLeader));
-					if ((gameTime.getElapsedSeconds(isLeader) < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
+                    timers.stopAll();
+
+					if ((roundSeconds < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
 					{
-						configManager.setRSProfileConfiguration("BaPB", round_role, gameTime.getElapsedSeconds(isLeader));
-						log.debug("Personal best of: {} saved in {}",gameTime.getElapsedSeconds(isLeader), round_role);
+						configManager.setRSProfileConfiguration("BaPB", round_role, roundSeconds);
+						log.debug("Personal best of: {} saved in {}",roundSeconds, round_role);
 					}
 					currentpb = getCurrentPB("Barbarian Assault");
-					if ((gameTime.getElapsedSeconds(isLeader) < currentpb || currentpb == 0.0))
+					if ((roundSeconds < currentpb || currentpb == 0.0))
 					{
-						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", gameTime.getElapsedSeconds(isLeader));
-						log.debug("Personal best of: {} saved in Barbarian Assault",gameTime.getElapsedSeconds(isLeader));
+						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", roundSeconds);
+						log.debug("Personal best of: {} saved in Barbarian Assault",roundSeconds);
 					}
 					//log.info(round_role);
 					//log.info(String.valueOf(gameTime.getPBTime()));
 					//log.info(String.valueOf(roleToDouble(round_role)));
 					//log.info(String.valueOf((gameTime.getPBTime() + roleToDouble(round_role))));
-					configManager.setRSProfileConfiguration("BaPB", "Recent", (gameTime.getElapsedSeconds(isLeader) + roleToDouble(round_role)));
+					configManager.setRSProfileConfiguration("BaPB", "Recent", (roundSeconds + roleToDouble(round_role)));
 					if(config.Logging())
 					{
 						str
 							.append(Instant.now().toString())
 							.append(",")
-							.append(String.valueOf(gameTime.getElapsedSeconds(isLeader)));
+							.append(String.valueOf(roundSeconds));
 						out.println(str);
 						str = new StringBuilder();
 						shutDownActions();//this guarantees the new line is written to disk(prevents having to do weird jank turn plugin on/off behavior)
 					}
 
                     if (config.SubmitRuns() && roundFormat != null) {
-                        service.handleRoundEnd(currentTeam, roundFormat, gameTime.getElapsedSeconds(isLeader), client.getLocalPlayer().getName(), config.uuid_key());
+                        service.handleRoundEnd(currentTeam, roundFormat, timers, isLeader, client.getLocalPlayer().getName(), config.uuid_key());
                     }
 					roundFormat = null;
 				}
@@ -244,7 +256,14 @@ public class BaPBPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-        gameTime.onGameTick();
+        WorldPoint wp = client.getLocalPlayer().getWorldLocation();
+        
+        int detectedWave = inWave();
+        int detectedLobby = lobby.getLobbyId(wp);
+        boolean goodPremove = isGoodPremove(wp);
+
+        timers.updateState(detectedWave, detectedLobby, goodPremove);
+        timers.onGameTick();
 
 		if(scanning) {
 			final String player;
@@ -392,14 +411,82 @@ public class BaPBPlugin extends Plugin
 			&& event.getMessage().startsWith("---- Wave:"))
 		{
 			String[] message = event.getMessage().split(" ");
-			currentWave = message[BA_WAVE_NUM_INDEX];
+			currentWave = Integer.parseInt(message[BA_WAVE_NUM_INDEX]);
 
-			if (currentWave.equals(START_WAVE))
+			if (currentWave == START_WAVE)
 			{
-                gameTime.start();
+                timers.resetAll();
+                timers.startRound();
 			}
 		}
 	}
+
+    private boolean isGoodPremove(WorldPoint wp)
+    {
+        return wp.getY() < PREMOVE_Y_THRESHOLD;
+    }
+
+    private int inWave()
+    {
+        // This method centralizes wave detection by combining multiple checks:
+        // 1. Verifies inGameBit is 1 (player is in a BA game).
+        // 2. Confirms the player is in an instanced region (BA is always instanced).
+        // 3. Checks for a role-specific horn in the inventory.
+        // 4. Ensures a role-specific widget is loaded (indicating the player has a role).
+        // 5. Validates that currentWave is a valid number between 1 and 10.
+        // Returns the wave number (1-10) if one condition is met; otherwise, returns 1.
+
+        if ((inGameBit == 1 || hasRoleHorn() || hasRoleWidget()) && client.getTopLevelWorldView().isInstance()) {
+            if (currentWave < 1 || currentWave > 10) {
+                return 0;
+            }
+            return currentWave;
+        }
+        return 0;
+    }
+
+    private boolean hasRoleHorn()
+    {
+        ItemContainer inventory = client.getItemContainer(InventoryID.INVENTORY);
+        if (inventory == null)
+        {
+            return false;
+        }
+
+        for (Item item : inventory.getItems())
+        {
+            if (item == null)
+            {
+                continue;
+            }
+
+            int id = item.getId();
+            if (id == net.runelite.api.gameval.ItemID.BARBASSAULT_ATT_HORN_01 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_ATT_HORN_02 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_ATT_HORN_03 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_ATT_HORN_04 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_ATT_HORN_05 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_DEFENDER_HORN ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_HORN_COLLECTOR ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_HEAL_HORN_01 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_HEAL_HORN_02 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_HEAL_HORN_03 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_HEAL_HORN_04 ||
+                    id == net.runelite.api.gameval.ItemID.BARBASSAULT_HEAL_HORN_05)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasRoleWidget()
+    {
+        return client.getWidget(BA_ATTACKER_GROUP_ID, 0) != null ||
+                client.getWidget(BA_COLLECTOR_GROUP_ID, 0) != null ||
+                client.getWidget(BA_DEFENDER_GROUP_ID, 0) != null ||
+                client.getWidget(BA_HEALER_GROUP_ID, 0) != null;
+    }
 
 	private double getCurrentPB(String pbKey)
 	{
