@@ -2,12 +2,12 @@ package com.BaPB;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
-import com.google.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -30,16 +30,17 @@ public class BaPBService
 
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
-    private final OkHttpClient http = new OkHttpClient();
-    private final ExecutorService executor;
-    private final Gson gson = new Gson();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final OkHttpClient http;
+    private final Gson gson;
     private final BaPBConfig config;
 
     @Inject
-    public BaPBService(BaPBConfig config)
+    public BaPBService(OkHttpClient http, Gson gson, BaPBConfig config)
     {
+        this.http = http;
+        this.gson = gson;
         this.config = config;
-        this.executor = Executors.newSingleThreadExecutor();
     }
 
     public void shutdown()
