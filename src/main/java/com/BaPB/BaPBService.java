@@ -150,9 +150,9 @@ public class BaPBService
             String submittedBy
     )
     {
-        if (!config.SubmitRuns())
+        if (!config.SubmitRuns() || roundFormat == null)
         {
-            log.debug("SubmitRuns is disabled. Skipping round submission.");
+            log.debug("SubmitRuns is disabled or roundFormat is null. Skipping round submission.");
             return;
         }
 

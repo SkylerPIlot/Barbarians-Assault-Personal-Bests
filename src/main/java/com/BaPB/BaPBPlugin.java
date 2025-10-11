@@ -215,9 +215,7 @@ public class BaPBPlugin extends Plugin
 						shutDownActions();//this guarantees the new line is written to disk(prevents having to do weird jank turn plugin on/off behavior)
 					}
 
-                    if (roundFormat != null) {
-                        service.handleRoundEnd(currentTeam, roundFormat, gameTime.getElapsedSeconds(isLeader), client.getLocalPlayer().getName());
-                    }
+                    service.handleRoundEnd(currentTeam, roundFormat, gameTime.getElapsedSeconds(isLeader), client.getLocalPlayer().getName());
 					roundFormat = null;
 				}
 
