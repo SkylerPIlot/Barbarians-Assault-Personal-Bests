@@ -30,15 +30,17 @@ public class BaPBService
 
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final OkHttpClient http;
     private final Gson gson;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final BaPBConfig config;
 
     @Inject
-    public BaPBService(OkHttpClient http, Gson gson)
+    public BaPBService(OkHttpClient http, Gson gson, BaPBConfig config)
     {
         this.http = http;
         this.gson = gson;
+        this.config = config;
     }
 
     public void shutdown()
@@ -145,10 +147,17 @@ public class BaPBService
             Map<String, String> currentTeam,
             String roundFormat,
             double gameTime,
-            String submittedBy,
-            String userUuid
+            String submittedBy
     )
     {
+        if (!config.SubmitRuns())
+        {
+            log.debug("SubmitRuns is disabled. Skipping round submission.");
+            return;
+        }
+
+        String userUuid = config.uuid_key();
+
         executor.execute(() -> {
             try {
                 // Validate token
