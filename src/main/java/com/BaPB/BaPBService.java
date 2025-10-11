@@ -2,6 +2,7 @@ package com.BaPB;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
+import com.google.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 
@@ -32,9 +33,12 @@ public class BaPBService
     private final OkHttpClient http = new OkHttpClient();
     private final ExecutorService executor;
     private final Gson gson = new Gson();
+    private final BaPBConfig config;
 
-    public BaPBService()
+    @Inject
+    public BaPBService(BaPBConfig config)
     {
+        this.config = config;
         this.executor = Executors.newSingleThreadExecutor();
     }
 
@@ -142,10 +146,17 @@ public class BaPBService
             Map<String, String> currentTeam,
             String roundFormat,
             double gameTime,
-            String submittedBy,
-            String userUuid
+            String submittedBy
     )
     {
+        if (!config.SubmitRuns())
+        {
+            log.debug("SubmitRuns is disabled. Skipping round submission.");
+            return;
+        }
+
+        String userUuid = config.uuid_key();
+
         executor.execute(() -> {
             try {
                 // Validate token
