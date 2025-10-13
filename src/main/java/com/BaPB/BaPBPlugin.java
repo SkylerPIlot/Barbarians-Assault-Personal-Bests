@@ -126,6 +126,9 @@ public class BaPBPlugin extends Plugin
 	@Inject
 	private BaPBConfig config;
 
+    @Inject
+    private BaPBService service;
+
 	@Inject
 	private ConfigManager configManager;
 
@@ -137,9 +140,6 @@ public class BaPBPlugin extends Plugin
 
 	@Inject
 	private ScheduledExecutorService executor;
-
-    @Inject
-    private BaPBService service;
 
 	@Provides
 	BaPBConfig provideConfig(ConfigManager configManager)
@@ -226,10 +226,7 @@ public class BaPBPlugin extends Plugin
 						str = new StringBuilder();
 						shutDownActions();//this guarantees the new line is written to disk(prevents having to do weird jank turn plugin on/off behavior)
 					}
-
-                    if (config.SubmitRuns() && roundFormat != null) {
-                        service.handleRoundEnd(currentTeam, roundFormat, timers, isLeader, client.getLocalPlayer().getName(), config.uuid_key());
-                    }
+                    service.handleRoundEnd(currentTeam, roundFormat, timers, isLeader, client.getLocalPlayer().getName());
 					roundFormat = null;
 				}
 
