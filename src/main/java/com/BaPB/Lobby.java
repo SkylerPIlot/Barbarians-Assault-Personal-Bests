@@ -1,5 +1,6 @@
 package com.BaPB;
 
+import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
 
 import java.util.HashMap;
@@ -26,6 +27,25 @@ public class Lobby
         {
             return point.getX() >= xMin && point.getX() <= xMax
                     && point.getY() >= yMin && point.getY() <= yMax;
+        }
+    }
+
+    @Getter
+    public static class RelativePoint
+    {
+        private final int x;
+        private final int y;
+
+        public RelativePoint(int x, int y)
+        {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "(" + x + "," + y + ")";
         }
     }
 
@@ -67,5 +87,23 @@ public class Lobby
     public Iterable<LobbyRegion> getAllRegions()
     {
         return regions.values();
+    }
+
+    /**
+     * Returns the relative coordinates (x, y) within the given lobby.
+     * Returns null if the lobbyId is invalid.
+     */
+    public RelativePoint getRelativeCoordinates(WorldPoint point, int lobbyId)
+    {
+        LobbyRegion region = regions.get(lobbyId);
+        if (region == null)
+        {
+            return null;
+        }
+
+        int relativeX = point.getX() - region.xMin;
+        int relativeY = point.getY() - region.yMin;
+
+        return new RelativePoint(relativeX, relativeY);
     }
 }

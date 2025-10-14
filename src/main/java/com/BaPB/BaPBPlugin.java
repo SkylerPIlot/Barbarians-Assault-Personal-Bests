@@ -259,7 +259,10 @@ public class BaPBPlugin extends Plugin
         int detectedLobby = lobby.getLobbyId(wp);
         boolean goodPremove = isGoodPremove(wp);
 
-        timers.updateState(detectedWave, detectedLobby, goodPremove);
+        // Only scroller should calculate relative spawn point
+        Lobby.RelativePoint relPoint = isLeader ? lobby.getRelativeCoordinates(wp, detectedLobby) : null;
+
+        timers.updateState(detectedWave, detectedLobby, goodPremove, relPoint);
         timers.onGameTick();
 
 		if(scanning) {

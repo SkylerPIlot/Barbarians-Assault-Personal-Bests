@@ -128,15 +128,17 @@ public class BaPBService
             int qsTime = 0;
             boolean goodPremove = false;
             boolean reset = false;
+            Lobby.RelativePoint rp = null;
 
             if (data != null) {
                 waveTime = data.getWaveTimer().getElapsedSeconds(scroller, false); // true = isLeader/scroller
                 qsTime = data.getQsTimer().roundTicks;
                 goodPremove = data.isGoodPremove();
                 reset = data.getLobbyCount() > 1;
+                rp = data.getRelativePoint();
             }
 
-            waveData.add(new WaveEntry(waveNumber, waveTime, qsTime, goodPremove, reset));
+            waveData.add(new WaveEntry(waveNumber, waveTime, qsTime, goodPremove, reset, rp));
         }
 
         // Prepare round time
@@ -242,12 +244,26 @@ public class BaPBService
         @SerializedName("reset")
         final Boolean reset;
 
-        WaveEntry(int waveNumber, double waveTime, int qsTime, boolean goodPremove, boolean reset) {
+        @SerializedName("x_qs_spawn")
+        final Integer xSpawn;
+
+        @SerializedName("y_qs_spawn")
+        final Integer ySpawn;
+
+        WaveEntry(int waveNumber, double waveTime, int qsTime, boolean goodPremove, boolean reset, Lobby.RelativePoint relativePoint) {
             this.waveNumber = waveNumber;
             this.waveTime = waveTime;
             this.qsTime = qsTime;
             this.goodPremove = goodPremove;
             this.reset = reset;
+
+            if (relativePoint != null) {
+                this.xSpawn = relativePoint.getX();
+                this.ySpawn = relativePoint.getY();
+            } else {
+                this.xSpawn = null;
+                this.ySpawn = null;
+            }
         }
     }
 

@@ -24,6 +24,7 @@ public class Timers
         private final GameTimer qsTimer;
         private boolean goodPremove;
         private int lobbyCount;
+        private Lobby.RelativePoint relativePoint;
 
         public WaveData() {
             this.waveTimer = new GameTimer();
@@ -147,7 +148,7 @@ public class Timers
     /**
      * Update timers based on the detected wave/lobby state.
      */
-    public void updateState(int currentWave, int currentLobby, boolean goodPremove)
+    public void updateState(int currentWave, int currentLobby, boolean goodPremove, Lobby.RelativePoint relPoint)
     {
         // --- Transition: Lobby → Wave ---
         if (lastWave == 0 && currentWave > 0)
@@ -168,6 +169,12 @@ public class Timers
             stopWave(lastWave);
             startQS(currentLobby);
 
+            if (relPoint != null)
+            {
+                WaveData data = waveData.computeIfAbsent(currentLobby, k -> new WaveData());
+                data.setRelativePoint(relPoint);
+            }
+
             // Detect resets
             WaveData data = waveData.get(currentLobby);
             if (data != null) data.incrementLobbyCount();
@@ -177,5 +184,35 @@ public class Timers
         // Save latest state
         lastWave = currentWave;
         lastLobby = currentLobby;
+    }
+
+    public void logWaveData()
+    {
+        if (waveData.isEmpty())
+        {
+            log.info("No wave data available.");
+            return;
+        }
+
+        log.info("----- WaveData Dump -----");
+        for (Map.Entry<Integer, WaveData> entry : waveData.entrySet())
+        {
+            int waveNumber = entry.getKey();
+            WaveData data = entry.getValue();
+
+            String relPointStr = (data.getRelativePoint() != null)
+                    ? "(" + data.getRelativePoint().getX() + "," + data.getRelativePoint().getY() + ")"
+                    : "null";
+
+            log.info("Wave {}: waveTimer={}s, qsTimer={}s, goodPremove={}, lobbyCount={}, relativePoint={}",
+                    waveNumber,
+                    data.getWaveTimer().getElapsedSeconds(true),
+                    data.getQsTimer().getElapsedSeconds(true),
+                    data.isGoodPremove(),
+                    data.getLobbyCount(),
+                    relPointStr
+            );
+        }
+        log.info("-------------------------");
     }
 }
