@@ -104,11 +104,13 @@ public class BaPBService
     private void submitRunToAPI(
             Map<String, String> currentTeam,
             String roundFormat,
-            double gameTime,
+            Timers timers,
+            boolean scroller,
             String submittedBy,
             String userUuid
     ) throws IOException
     {
+        // Prepare players
         List<PlayerEntry> players = new ArrayList<>();
         for (Map.Entry<String, String> e : currentTeam.entrySet())
         {
@@ -116,11 +118,39 @@ public class BaPBService
             players.add(new PlayerEntry(e.getKey(), e.getValue(), uuid));
         }
 
+        // Prepare wave data
+        List<WaveEntry> waveData = new ArrayList<>();
+        for (Map.Entry<Integer, Timers.WaveData> entry : timers.getWaveData().entrySet()) {
+            int waveNumber = entry.getKey();
+            Timers.WaveData data = entry.getValue();
+
+            double waveTime = 0;
+            int qsTime = 0;
+            boolean goodPremove = false;
+            boolean reset = false;
+            Lobby.RelativePoint rp = null;
+
+            if (data != null) {
+                waveTime = data.getWaveTimer().getElapsedSeconds(scroller, false); // true = isLeader/scroller
+                qsTime = data.getQsTimer().roundTicks;
+                goodPremove = data.isGoodPremove();
+                reset = data.getLobbyCount() > 1;
+                rp = data.getRelativePoint();
+            }
+
+            waveData.add(new WaveEntry(waveNumber, waveTime, qsTime, goodPremove, reset, rp));
+        }
+
+        // Prepare round time
+        double roundTime = timers.getRoundTimer().getElapsedSeconds(scroller);
+
         SubmitPayload payload = new SubmitPayload(
                 roundFormat,
-                gameTime,
+                roundTime,
                 submittedBy,
-                players
+                scroller,
+                players,
+                waveData
         );
 
         RequestBody body = RequestBody.create(JSON, gson.toJson(payload));
@@ -146,7 +176,8 @@ public class BaPBService
     public void handleRoundEnd(
             Map<String, String> currentTeam,
             String roundFormat,
-            double gameTime,
+            Timers timers,
+            boolean scroller,
             String submittedBy
     )
     {
@@ -166,7 +197,7 @@ public class BaPBService
                     fetchToken(submittedBy);
                 }
 
-                submitRunToAPI(currentTeam, roundFormat, gameTime, submittedBy, userUuid);
+                submitRunToAPI(currentTeam, roundFormat, timers, scroller, submittedBy, userUuid);
 
             } catch (Exception e) {
                 log.warn("Failed during token check or run submission", e);
@@ -197,6 +228,45 @@ public class BaPBService
         String expiresAt;
     }
 
+    private static class WaveEntry {
+        @SerializedName("wave_number")
+        final int waveNumber;
+
+        @SerializedName("wave_time")
+        final double waveTime;
+
+        @SerializedName("qs_time")
+        final int qsTime;
+
+        @SerializedName("good_premove")
+        final boolean goodPremove;
+
+        @SerializedName("reset")
+        final Boolean reset;
+
+        @SerializedName("x_qs_spawn")
+        final Integer xSpawn;
+
+        @SerializedName("y_qs_spawn")
+        final Integer ySpawn;
+
+        WaveEntry(int waveNumber, double waveTime, int qsTime, boolean goodPremove, boolean reset, Lobby.RelativePoint relativePoint) {
+            this.waveNumber = waveNumber;
+            this.waveTime = waveTime;
+            this.qsTime = qsTime;
+            this.goodPremove = goodPremove;
+            this.reset = reset;
+
+            if (relativePoint != null) {
+                this.xSpawn = relativePoint.getX();
+                this.ySpawn = relativePoint.getY();
+            } else {
+                this.xSpawn = null;
+                this.ySpawn = null;
+            }
+        }
+    }
+
     private static class PlayerEntry
     {
         @SerializedName("character_name")
@@ -222,17 +292,23 @@ public class BaPBService
         final String format;
         @SerializedName("round_time")
         final double roundTime;
+        @SerializedName("scroller")
+        final boolean scroller;
         @SerializedName("submitted_by")
         final String submittedBy;
         @SerializedName("players")
         final List<PlayerEntry> players;
+        @SerializedName("wave_data")
+        final List<WaveEntry> waveData;
 
-        SubmitPayload(String format, double roundTime, String submittedBy, List<PlayerEntry> players)
+        SubmitPayload(String format, double roundTime, String submittedBy, boolean scroller, List<PlayerEntry> players, List<WaveEntry> waveData)
         {
             this.format = format;
             this.roundTime = roundTime;
             this.submittedBy = submittedBy;
+            this.scroller = scroller;
             this.players = players;
+            this.waveData = waveData;
         }
     }
 }
