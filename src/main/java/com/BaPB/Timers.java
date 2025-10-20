@@ -190,11 +190,11 @@ public class Timers
     {
         if (waveData.isEmpty())
         {
-            log.info("No wave data available.");
+            log.debug("No wave data available.");
             return;
         }
 
-        log.info("----- WaveData Dump -----");
+        log.debug("----- WaveData Dump -----");
         for (Map.Entry<Integer, WaveData> entry : waveData.entrySet())
         {
             int waveNumber = entry.getKey();
@@ -204,7 +204,7 @@ public class Timers
                     ? "(" + data.getRelativePoint().getX() + "," + data.getRelativePoint().getY() + ")"
                     : "null";
 
-            log.info("Wave {}: waveTimer={}s, qsTimer={}s, goodPremove={}, lobbyCount={}, relativePoint={}",
+            log.debug("Wave {}: waveTimer={}s, qsTimer={}s, goodPremove={}, lobbyCount={}, relativePoint={}",
                     waveNumber,
                     data.getWaveTimer().getElapsedSeconds(true),
                     data.getQsTimer().getElapsedSeconds(true),
@@ -213,6 +213,6 @@ public class Timers
                     relPointStr
             );
         }
-        log.info("-------------------------");
+        log.debug("-------------------------");
     }
 }
