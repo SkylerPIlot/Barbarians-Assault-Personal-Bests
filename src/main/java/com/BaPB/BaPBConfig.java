@@ -64,13 +64,22 @@ BaPBConfig extends Config
 			position = 4,
 			keyName = "sub_runs",
 			name = "Submit Runs",
-			warning = "This portion of the plugin submits data to a 3rd part website not controlled or verified by the RuneLite Developers.",
+			warning = "This portion of the plugin submits data to a 3rd party website not controlled or verified by the RuneLite Developers.",
 			description = "This will submit runs to osrs-ba.com"
 	)
 	default boolean SubmitRuns() { return false; }
 
-	@ConfigItem(
-			position = 5,
+    @ConfigItem(
+            position = 5,
+            keyName = "sub_qs",
+            name = "Submit QS Stats",
+            description = "This will submit QS statistics to osrs-ba.com. Only used when \"Submit Runs\" is enabled."
+    )
+    default boolean SubmitQS() { return false; }
+
+
+    @ConfigItem(
+			position = 6,
 			keyName = "uuid_key",
 			name = "UUID Key",
 			description = "Key used for linking ALT accounts, you can get one by logging into osrs-ba.com/accounts. Only used when \"Submit Runs\" is enabled."

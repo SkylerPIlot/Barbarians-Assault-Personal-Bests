@@ -260,7 +260,7 @@ public class BaPBPlugin extends Plugin
         boolean goodPremove = isGoodPremove(wp);
 
         // Only scroller should calculate relative spawn point
-        Lobby.RelativePoint relPoint = isLeader ? lobby.getRelativeCoordinates(wp, detectedLobby) : null;
+        Lobby.RelativePoint relPoint = isLeader && config.SubmitQS() ? lobby.getRelativeCoordinates(wp, detectedLobby) : null;
 
         timers.updateState(detectedWave, detectedLobby, goodPremove, relPoint);
         timers.onGameTick();
