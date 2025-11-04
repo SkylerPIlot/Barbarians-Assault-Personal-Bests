@@ -40,6 +40,18 @@ These commands show when you do a leech run and those are identified as any runs
 
 !ba la
 
+These commands show when you do a duo healer run and those are identified as any runs scrolled as AHHCD(DH order)
+
+!ba dha
+
+!ba dh2
+
+!ba dhh
+
+!ba dhc
+
+!ba dhd
+
 Logging of all players in the run including the overall time of the run can be enabled and after enabling found in the .runelite directory
 
 If you find any issues with the plugin please submit an issue in this repository and I will try to look at it an fix it as soon as I can.
