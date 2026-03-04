@@ -46,12 +46,16 @@ import net.runelite.client.chat.*;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ChatInput;
+import net.runelite.client.game.WorldService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Text;
 import net.runelite.client.chat.ChatClient;
+import net.runelite.http.api.worlds.World;
+import net.runelite.http.api.worlds.WorldRegion;
+import net.runelite.http.api.worlds.WorldResult;
 import org.apache.commons.text.WordUtils;
 
 import static net.runelite.client.RuneLite.RUNELITE_DIR;
@@ -141,6 +145,9 @@ public class BaPBPlugin extends Plugin
 	@Inject
 	private ScheduledExecutorService executor;
 
+    @Inject
+    private WorldService worldService;
+
 	@Provides
 	BaPBConfig provideConfig(ConfigManager configManager)
 	{
@@ -226,7 +233,7 @@ public class BaPBPlugin extends Plugin
 						str = new StringBuilder();
 						shutDownActions();//this guarantees the new line is written to disk(prevents having to do weird jank turn plugin on/off behavior)
 					}
-                    service.handleRoundEnd(currentTeam, roundFormat, timers, isLeader, client.getLocalPlayer().getName());
+                    service.handleRoundEnd(currentTeam, roundFormat, timers, isLeader, client.getLocalPlayer().getName(), getWorldRegion());
 					roundFormat = null;
 				}
 
@@ -436,7 +443,116 @@ public class BaPBPlugin extends Plugin
                 timers.startRound();
 			}
 		}
+
+        // for some reason, the 'All of the Penance ... have been killed' are WELCOME messages for Healer/Collector/Defender roles
+        if (event.getType() == ChatMessageType.WELCOME || event.getType() == ChatMessageType.GAMEMESSAGE
+                && event.getMessage().startsWith("All of the Penance "))
+        {
+            checkNpcDeaths(event);
+        }
+
+        if (inWave() == 10 && event.getType() == ChatMessageType.GAMEMESSAGE
+                && event.getMessage().equals("The Queen has arrived and you can no longer use the horn of glory!")) {
+            double currentW10Time = timers.getWaveTimer(inWave()).getElapsedSeconds(isLeader);
+            timers.setQueenSpawnTime(currentW10Time);
+        }
 	}
+
+    private void checkNpcDeaths(ChatMessage chatMessage) {
+        final MessageNode node = chatMessage.getMessageNode();
+        String nodeValue = Text.removeTags(node.getValue());
+        String[] parts = nodeValue.split(" ");
+
+        if (parts.length < 5) {
+            return;
+        }
+
+        final String npc = parts[4];
+        // NOTE: This relies on the ba minigame plugin, maybe switch to own timers in the future
+        String deathTimeStr = parts[parts.length - 1];
+
+        // Remove trailing 's' if present
+        if (deathTimeStr.endsWith("s")) {
+            deathTimeStr = deathTimeStr.substring(0, deathTimeStr.length() - 1);
+        }
+
+        double deathTime;
+        try {
+            deathTime = Double.parseDouble(deathTimeStr);
+        } catch (NumberFormatException e) {
+            log.debug("Cant parse death time to double: {}", deathTimeStr);
+            return; // if parsing fails, skip the switch
+        }
+
+        int wave_num = inWave();
+        if (wave_num == 0) {
+            log.debug("Can't set death times outside of wave");
+            return;
+        }
+
+        switch (npc) {
+            case "Rangers":
+                timers.setRangerDeath(wave_num, deathTime);
+                break;
+            case "Fighters":
+                timers.setFighterDeath(wave_num, deathTime);
+                break;
+            case "Runners":
+                timers.setRunnerDeath(wave_num, deathTime);
+                break;
+            case "Healers":
+                timers.setHealerDeath(wave_num, deathTime);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private String getWorldRegion()
+    {
+        WorldResult worldResult = worldService.getWorlds();
+        if (worldResult == null)
+        {
+            return null;
+        }
+
+        World world = worldResult.findWorld(client.getWorld());
+        if (world == null)
+        {
+            return null;
+        }
+
+        WorldRegion region = world.getRegion();
+        if (region == null)
+        {
+            return null;
+        }
+
+        String alpha2 = region.getAlpha2();
+
+        // Only refine for US worlds
+        if ("US".equals(alpha2))
+        {
+            EnumComposition locationEnum = client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState()
+                    ? client.getEnum(EnumID.WORLD_LOCATIONS)
+                    : null;
+
+            if (locationEnum != null)
+            {
+                int location = locationEnum.getIntValue(world.getId());
+                if (location == -73)
+                {
+                    return "USW"; // US West
+                }
+                else if (location == -42)
+                {
+                    return "USE"; // US East
+                }
+            }
+        }
+
+        return alpha2;
+    }
 
     private boolean isGoodPremove(WorldPoint wp)
     {

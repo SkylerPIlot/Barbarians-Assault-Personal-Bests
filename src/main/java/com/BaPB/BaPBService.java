@@ -107,7 +107,8 @@ public class BaPBService
             Timers timers,
             boolean scroller,
             String submittedBy,
-            String userUuid
+            String userUuid,
+            String worldRegion
     ) throws IOException
     {
         // Prepare players
@@ -129,6 +130,11 @@ public class BaPBService
             boolean goodPremove = false;
             boolean reset = false;
             Lobby.RelativePoint rp = null;
+            Double rangerDeathTime = null;
+            Double fighterDeathTime = null;
+            Double runnerDeathTime = null;
+            Double healerDeathTime = null;
+            Double queenSpawnTime = null;
 
             if (data != null) {
                 waveTime = data.getWaveTimer().getElapsedSeconds(scroller, false); // true = isLeader/scroller
@@ -136,9 +142,15 @@ public class BaPBService
                 goodPremove = data.isGoodPremove();
                 reset = data.getLobbyCount() > 1;
                 rp = data.getRelativePoint();
+                rangerDeathTime = data.getRangerDeathTime();
+                fighterDeathTime = data.getFighterDeathTime();
+                runnerDeathTime = data.getRunnerDeathTime();
+                healerDeathTime = data.getHealerDeathTime();
+                queenSpawnTime = data.getQueenSpawnTime();
+
             }
 
-            waveData.add(new WaveEntry(waveNumber, waveTime, qsTime, goodPremove, reset, rp));
+            waveData.add(new WaveEntry(waveNumber, waveTime, qsTime, goodPremove, reset, rp, rangerDeathTime, fighterDeathTime, runnerDeathTime, healerDeathTime, queenSpawnTime));
         }
 
         // Prepare round time
@@ -149,11 +161,13 @@ public class BaPBService
                 roundTime,
                 submittedBy,
                 scroller,
+                worldRegion,
                 players,
                 waveData
         );
 
         RequestBody body = RequestBody.create(JSON, gson.toJson(payload));
+        log.debug("Submitting body: {}", gson.toJson(payload));
         Request req = new Request.Builder()
                 .url(SUBMIT_RUN_URL)
                 .addHeader("Authorization", "Bearer " + cachedToken)
@@ -178,7 +192,8 @@ public class BaPBService
             String roundFormat,
             Timers timers,
             boolean scroller,
-            String submittedBy
+            String submittedBy,
+            String worldRegion
     )
     {
         if (!config.SubmitRuns() || roundFormat == null)
@@ -197,7 +212,7 @@ public class BaPBService
                     fetchToken(submittedBy);
                 }
 
-                submitRunToAPI(currentTeam, roundFormat, timers, scroller, submittedBy, userUuid);
+                submitRunToAPI(currentTeam, roundFormat, timers, scroller, submittedBy, userUuid, worldRegion);
 
             } catch (Exception e) {
                 log.warn("Failed during token check or run submission", e);
@@ -250,12 +265,32 @@ public class BaPBService
         @SerializedName("y_qs_spawn")
         final Integer ySpawn;
 
-        WaveEntry(int waveNumber, double waveTime, int qsTime, boolean goodPremove, boolean reset, Lobby.RelativePoint relativePoint) {
+        @SerializedName("ranger_death_time")
+        final Double rangerDeathTime;
+
+        @SerializedName("fighter_death_time")
+        final Double fighterDeathTime;
+
+        @SerializedName("runner_death_time")
+        final Double runnerDeathTime;
+
+        @SerializedName("healer_death_time")
+        final Double healerDeathTime;
+
+        @SerializedName("queen_spawn_time")
+        final Double queenSpawnTime;
+
+        WaveEntry(int waveNumber, double waveTime, int qsTime, boolean goodPremove, boolean reset, Lobby.RelativePoint relativePoint, Double rangerDeathTime, Double fighterDeathTime, Double runnerDeathTime, Double healerDeathTime, Double queenSpawnTime) {
             this.waveNumber = waveNumber;
             this.waveTime = waveTime;
             this.qsTime = qsTime;
             this.goodPremove = goodPremove;
             this.reset = reset;
+            this.rangerDeathTime = rangerDeathTime;
+            this.fighterDeathTime = fighterDeathTime;
+            this.runnerDeathTime = runnerDeathTime;
+            this.healerDeathTime = healerDeathTime;
+            this.queenSpawnTime = queenSpawnTime;
 
             if (relativePoint != null) {
                 this.xSpawn = relativePoint.getX();
@@ -296,17 +331,20 @@ public class BaPBService
         final boolean scroller;
         @SerializedName("submitted_by")
         final String submittedBy;
+        @SerializedName("world_region")
+        final String worldRegion;
         @SerializedName("players")
         final List<PlayerEntry> players;
         @SerializedName("wave_data")
         final List<WaveEntry> waveData;
 
-        SubmitPayload(String format, double roundTime, String submittedBy, boolean scroller, List<PlayerEntry> players, List<WaveEntry> waveData)
+        SubmitPayload(String format, double roundTime, String submittedBy, boolean scroller, String worldRegion, List<PlayerEntry> players, List<WaveEntry> waveData)
         {
             this.format = format;
             this.roundTime = roundTime;
             this.submittedBy = submittedBy;
             this.scroller = scroller;
+            this.worldRegion = worldRegion;
             this.players = players;
             this.waveData = waveData;
         }
