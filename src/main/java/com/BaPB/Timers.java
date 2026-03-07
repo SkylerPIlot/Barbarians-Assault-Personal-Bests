@@ -25,6 +25,11 @@ public class Timers
         private boolean goodPremove;
         private int lobbyCount;
         private Lobby.RelativePoint relativePoint;
+        private Double rangerDeathTime;
+        private Double fighterDeathTime;
+        private Double runnerDeathTime;
+        private Double healerDeathTime;
+        private Double queenSpawnTime;
 
         public WaveData() {
             this.waveTimer = new GameTimer();
@@ -107,6 +112,38 @@ public class Timers
     public double getRoundSeconds(boolean isLeader)
     {
         return roundTimer.getElapsedSeconds(isLeader);
+    }
+
+    /* -------------------- NPC Death Methods -------------------- **/
+
+    public void setRangerDeath(int waveNumber, double time)
+    {
+        WaveData data = waveData.get(waveNumber);
+        if (data != null) data.setRangerDeathTime(time);
+    }
+
+    public void setFighterDeath(int waveNumber, double time)
+    {
+        WaveData data = waveData.get(waveNumber);
+        if (data != null) data.setFighterDeathTime(time);
+    }
+
+    public void setRunnerDeath(int waveNumber, double time)
+    {
+        WaveData data = waveData.get(waveNumber);
+        if (data != null) data.setRunnerDeathTime(time);
+    }
+
+    public void setHealerDeath(int waveNumber, double time)
+    {
+        WaveData data = waveData.get(waveNumber);
+        if (data != null) data.setHealerDeathTime(time);
+    }
+
+    public void setQueenSpawnTime(double time)
+    {
+        WaveData data = waveData.get(10); // Queen only W10
+        if (data != null) data.setQueenSpawnTime(time);
     }
 
     /* -------------------- Tick Update -------------------- **/
@@ -204,12 +241,16 @@ public class Timers
                     ? "(" + data.getRelativePoint().getX() + "," + data.getRelativePoint().getY() + ")"
                     : "null";
 
-            log.debug("Wave {}: waveTimer={}s, qsTimer={}s, goodPremove={}, lobbyCount={}, relativePoint={}",
+            log.debug("Wave {}: waveTimer={}s, qsTimer={}s, goodPremove={}, lobbyCount={}, fighterTime={}, rangerTime={}, runnerTime={}, healerTime={}, relativePoint={}",
                     waveNumber,
                     data.getWaveTimer().getElapsedSeconds(true),
                     data.getQsTimer().getElapsedSeconds(true),
                     data.isGoodPremove(),
                     data.getLobbyCount(),
+                    data.getFighterDeathTime(),
+                    data.getRangerDeathTime(),
+                    data.getRunnerDeathTime(),
+                    data.getHealerDeathTime(),
                     relPointStr
             );
         }
