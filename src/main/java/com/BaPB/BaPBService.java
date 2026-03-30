@@ -21,8 +21,8 @@ import java.util.concurrent.ExecutorService;
 @Slf4j
 public class BaPBService
 {
-    private static final String TOKEN_ISSUER_URL   = "https://osrs-ba-api-7f97e40f532b.herokuapp.com/api/v1/tokens/public/";
-    private static final String SUBMIT_RUN_URL   = "https://osrs-ba-api-7f97e40f532b.herokuapp.com/api/v1/rounds/";
+    private static final String TOKEN_ISSUER_URL   = "https://api.osrs-ba.com/api/v1/tokens/public/";
+    private static final String SUBMIT_RUN_URL   = "https://api.osrs-ba.com/api/v1/rounds/";
 
     private static final String SIGNING_SECRET = "ba-4-all";
     private String cachedToken = null;
