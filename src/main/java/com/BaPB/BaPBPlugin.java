@@ -112,6 +112,7 @@ public class BaPBPlugin extends Plugin
 	private Integer defenderIcon = 20566;
 	private Integer collectorIcon = 20563;
 	private Integer healerIcon = 20569;
+    private Integer emptyIcon = 65535;
 	private PrintWriter out;
 	private BufferedWriter bw;
 	private FileWriter fw;
@@ -287,7 +288,8 @@ public class BaPBPlugin extends Plugin
 			Widget player4Icon = client.getWidget(BaRoleWidget, player4iconID);
 			log.debug("Scanning Team");
 
-			if ((player4Icon.getModelId() != leaderIcon.getModelId()) &&  (player4Icon.getModelId() != 65535) && (leaderIcon.getModelId() != 65535)){//this number is the blank icon
+            // All players have a role assigned
+			if (player1Icon.getModelId() != emptyIcon && player2Icon.getModelId() != emptyIcon && player3Icon.getModelId() != emptyIcon && player4Icon.getModelId() != emptyIcon && leaderIcon.getModelId() != emptyIcon){
 				log.debug("Scanning Complete");
 				log.debug("Leader is {}", leader.getText());
 				log.debug("Player1 is {}", player1.getText());
@@ -453,7 +455,7 @@ public class BaPBPlugin extends Plugin
 
         if (inWave() == 10 && event.getType() == ChatMessageType.GAMEMESSAGE
                 && event.getMessage().equals("The Queen has arrived and you can no longer use the horn of glory!")) {
-            double currentW10Time = timers.getWaveTimer(inWave()).getElapsedSeconds(isLeader);
+            double currentW10Time = timers.getWaveTimer(inWave()).getElapsedSeconds(isLeader, false);
             timers.setQueenSpawnTime(currentW10Time);
         }
 	}
@@ -567,7 +569,7 @@ public class BaPBPlugin extends Plugin
         // 3. Checks for a role-specific horn in the inventory.
         // 4. Ensures a role-specific widget is loaded (indicating the player has a role).
         // 5. Validates that currentWave is a valid number between 1 and 10.
-        // Returns the wave number (1-10) if one condition is met; otherwise, returns 1.
+        // Returns the wave number (1-10) if one condition is met; otherwise, returns 0.
 
         if ((inGameBit == 1 || hasRoleHorn() || hasRoleWidget()) && client.getTopLevelWorldView().isInstance()) {
             if (currentWave < 1 || currentWave > 10) {
