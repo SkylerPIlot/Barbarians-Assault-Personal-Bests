@@ -112,7 +112,7 @@ public class BaPBPlugin extends Plugin
 	private Integer defenderIcon = 20566;
 	private Integer collectorIcon = 20563;
 	private Integer healerIcon = 20569;
-    private Integer emptyIcon = 65535;
+    private Integer emptyIcon = -1;
 	private PrintWriter out;
 	private BufferedWriter bw;
 	private FileWriter fw;
@@ -212,6 +212,12 @@ public class BaPBPlugin extends Plugin
 					{
 						configManager.setRSProfileConfiguration("BaPB", round_role, roundSeconds);
 						log.debug("Personal best of: {} saved in {}",roundSeconds, round_role);
+
+                        chatMessageManager.queue(QueuedMessage.builder()
+                                .type(ChatMessageType.CONSOLE)
+                                .runeLiteFormattedMessage("<col=00ff00>A new " + round_role + " PB has been achieved!</col>")
+                                .build());
+                        client.playSoundEffect(6765);
 					}
 					currentpb = getCurrentPB("Barbarian Assault");
 					if ((roundSeconds < currentpb || currentpb == 0.0))
