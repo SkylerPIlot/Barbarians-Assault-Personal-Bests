@@ -108,11 +108,11 @@ public class BaPBPlugin extends Plugin
 	private Integer player2iconID = 20;
 	private Integer player3iconID = 21;
 	private Integer player4iconID = 22;
-    private Integer emptyIcon = -1;
 	private Integer attackerIcon = 20561;
 	private Integer defenderIcon = 20566;
 	private Integer collectorIcon = 20563;
 	private Integer healerIcon = 20569;
+    private Integer emptyIcon = -1;
 	private PrintWriter out;
 	private BufferedWriter bw;
 	private FileWriter fw;
