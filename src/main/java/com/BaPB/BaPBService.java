@@ -27,10 +27,10 @@ public class BaPBService
     private static final String SIGNING_SECRET = "ba-4-all";
     private String cachedToken = null;
     private Instant cachedTokenExpiry = null;
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final OkHttpClient http;
     private final Gson gson;
     private final BaPBConfig config;
@@ -46,6 +46,16 @@ public class BaPBService
     public void shutdown()
     {
         executor.shutdown();
+    }
+
+    private synchronized ExecutorService getExecutor()
+    {
+        if (executor == null || executor.isShutdown() || executor.isTerminated())
+        {
+            log.debug("Getting new executor");
+            executor = Executors.newSingleThreadExecutor();
+        }
+        return executor;
     }
 
     private boolean isTokenValid()
@@ -204,7 +214,7 @@ public class BaPBService
 
         String userUuid = config.uuid_key();
 
-        executor.execute(() -> {
+        getExecutor().execute(() -> {
             try {
                 // Validate token
                 if (!isTokenValid()) {
