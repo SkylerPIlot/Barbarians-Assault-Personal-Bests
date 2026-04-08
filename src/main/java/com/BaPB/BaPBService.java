@@ -15,8 +15,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 @Slf4j
 public class BaPBService
@@ -27,7 +26,6 @@ public class BaPBService
     private static final String SIGNING_SECRET = "ba-4-all";
     private String cachedToken = null;
     private Instant cachedTokenExpiry = null;
-    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
@@ -36,26 +34,14 @@ public class BaPBService
     private final BaPBConfig config;
 
     @Inject
+    private ScheduledExecutorService executor;
+
+    @Inject
     public BaPBService(OkHttpClient http, Gson gson, BaPBConfig config)
     {
         this.http = http;
         this.gson = gson;
         this.config = config;
-    }
-
-    public void shutdown()
-    {
-        executor.shutdown();
-    }
-
-    private synchronized ExecutorService getExecutor()
-    {
-        if (executor == null || executor.isShutdown() || executor.isTerminated())
-        {
-            log.debug("Getting new executor");
-            executor = Executors.newSingleThreadExecutor();
-        }
-        return executor;
     }
 
     private boolean isTokenValid()
@@ -214,7 +200,7 @@ public class BaPBService
 
         String userUuid = config.uuid_key();
 
-        getExecutor().execute(() -> {
+        executor.execute(() -> {
             try {
                 // Validate token
                 if (!isTokenValid()) {

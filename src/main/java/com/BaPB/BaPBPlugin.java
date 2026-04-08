@@ -185,7 +185,6 @@ public class BaPBPlugin extends Plugin
 		str = new StringBuilder();
         currentTeam.clear();
         timers.resetAll();
-        service.shutdown();
 	}
 
 	private void shutDownActions() throws IOException
