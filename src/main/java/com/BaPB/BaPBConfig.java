@@ -37,7 +37,7 @@ BaPBConfig extends Config
 	@ConfigItem(
 			position = 1,
 		keyName = "baPB",
-		name = "Save role PB different then Overall PB",
+		name = "Save role PB different than Overall PB",
 		description = "Turning this on will save your round time into a specific role round time as well as into the overall pb"
 	)
 	default boolean Seperate()
