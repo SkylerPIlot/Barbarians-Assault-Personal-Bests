@@ -77,12 +77,21 @@ BaPBConfig extends Config
     )
     default boolean SubmitQS() { return false; }
 
-
     @ConfigItem(
 			position = 6,
+			keyName = "sync_pbs",
+			name = "Sync PBs",
+			warning = "This portion of the plugin submits data to a 3rd party website not controlled or verified by the RuneLite Developers.",
+			description = "Pulls PBs from osrs-ba.com rather than from your local machine. Helps keep your PBs accurate across multiple devices or accounts."
+	)
+	default boolean SyncPbs() { return false; }
+
+
+    @ConfigItem(
+			position = 7,
 			keyName = "uuid_key",
 			name = "UUID Key",
-			description = "Key used for linking ALT accounts, you can get one by logging into osrs-ba.com/accounts. Only used when \"Submit Runs\" is enabled."
+			description = "Key used for linking ALT accounts, you can get one by logging into osrs-ba.com/accounts."
 	)
 	default String uuid_key() { return null; }
 
