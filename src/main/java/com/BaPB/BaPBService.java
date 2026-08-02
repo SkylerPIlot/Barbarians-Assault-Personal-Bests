@@ -1,6 +1,9 @@
 package com.BaPB;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
@@ -20,6 +23,7 @@ import java.util.concurrent.ScheduledExecutorService;
 @Slf4j
 public class BaPBService
 {
+    private static final String PLAYER_PBS_URL = "https://api.osrs-ba.com/api/v1/players/pbs/";
     private static final String TOKEN_ISSUER_URL   = "https://api.osrs-ba.com/api/v1/tokens/public/";
     private static final String SUBMIT_RUN_URL   = "https://api.osrs-ba.com/api/v1/rounds/";
 
@@ -214,6 +218,141 @@ public class BaPBService
                 log.warn("Failed during token check or run submission", e);
             }
         });
+    }
+
+    public boolean supportsPersonalBest(String personalBestType)
+    {
+        return getPersonalBestTarget(personalBestType) != null;
+    }
+
+    public double fetchPersonalBest(String player, String personalBestType) throws IOException
+    {
+        PersonalBestTarget target = getPersonalBestTarget(personalBestType);
+        if (target == null)
+        {
+            return 0.0;
+        }
+
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(PLAYER_PBS_URL)).newBuilder()
+                .addQueryParameter("name", player)
+                .build();
+        if (target.format != null && target.role != null)
+        {
+            url = url.newBuilder()
+                    .addQueryParameter("format", target.format)
+                    .addQueryParameter("role", target.role)
+                    .build();
+        }
+        Request request = new Request.Builder().url(url).get().build();
+
+        try (Response response = http.newCall(request).execute())
+        {
+            if (!response.isSuccessful() || response.body() == null)
+            {
+                throw new IOException("Personal best API lookup failed with HTTP " + response.code());
+            }
+
+            try
+            {
+                JsonObject wrapper = gson.fromJson(response.body().charStream(), JsonObject.class);
+                JsonObject data = getObject(wrapper, "data");
+                if (target.format == null)
+                {
+                    double personalBest = findQuickestPersonalBest(data);
+                    if (personalBest <= 0)
+                    {
+                        log.warn("Personal best API returned no PBs for {}", player);
+                    }
+                    return personalBest;
+                }
+
+                JsonObject format = getObject(data, target.format);
+                JsonObject role = getObject(format, target.role);
+                JsonElement pbTime = role == null ? null : role.get("pb_time");
+                return pbTime == null || pbTime.isJsonNull() ? 0.0 : pbTime.getAsDouble();
+            }
+            catch (JsonParseException | IllegalStateException | NumberFormatException ex)
+            {
+                throw new IOException("Unable to parse personal best API response", ex);
+            }
+        }
+    }
+
+    private static double findQuickestPersonalBest(JsonElement element)
+    {
+        if (element == null || !element.isJsonObject())
+        {
+            return 0.0;
+        }
+
+        double quickest = Double.POSITIVE_INFINITY;
+        JsonObject object = element.getAsJsonObject();
+        JsonElement pbTime = object.get("pb_time");
+        if (pbTime != null && !pbTime.isJsonNull())
+        {
+            double value = pbTime.getAsDouble();
+            if (value > 0)
+            {
+                quickest = value;
+            }
+        }
+
+        for (Map.Entry<String, JsonElement> entry : object.entrySet())
+        {
+            double nested = findQuickestPersonalBest(entry.getValue());
+            if (nested > 0 && nested < quickest)
+            {
+                quickest = nested;
+            }
+        }
+
+        return Double.isInfinite(quickest) ? 0.0 : quickest;
+    }
+
+    private static JsonObject getObject(JsonObject parent, String member)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        JsonElement element = parent.get(member);
+        return element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
+    }
+
+    private static PersonalBestTarget getPersonalBestTarget(String personalBestType)
+    {
+        switch (personalBestType)
+        {
+            case "Barbarian Assault": return new PersonalBestTarget(null, null);
+            case "Main Attacker": return new PersonalBestTarget("five_man", "main_attacker");
+            case "Attacker": return new PersonalBestTarget("five_man", "2nd_attacker");
+            case "Healer": return new PersonalBestTarget("five_man", "healer");
+            case "Collector": return new PersonalBestTarget("five_man", "collector");
+            case "Defender": return new PersonalBestTarget("five_man", "defender");
+            case "Leech Attacker": return new PersonalBestTarget("leech", "attacker");
+            case "Leech Healer": return new PersonalBestTarget("leech", "healer");
+            case "Leech Collector": return new PersonalBestTarget("leech", "collector");
+            case "Leech Defender": return new PersonalBestTarget("leech", "defender");
+            case "DH Attacker": return new PersonalBestTarget("duo_heal", "attacker");
+            case "DH 2nd Healer": return new PersonalBestTarget("duo_heal", "2nd_healer");
+            case "DH Main Healer": return new PersonalBestTarget("duo_heal", "main_healer");
+            case "DH Collector": return new PersonalBestTarget("duo_heal", "collector");
+            case "DH Defender": return new PersonalBestTarget("duo_heal", "defender");
+            default: return null;
+        }
+    }
+
+    private static class PersonalBestTarget
+    {
+        private final String format;
+        private final String role;
+
+        private PersonalBestTarget(String format, String role)
+        {
+            this.format = format;
+            this.role = role;
+        }
     }
 
     private String generateHmacSha256(String key, String data) throws Exception

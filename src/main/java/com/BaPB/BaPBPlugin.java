@@ -72,8 +72,8 @@ public class BaPBPlugin extends Plugin
 	private static final int START_WAVE = 1;
     private static final int PREMOVE_Y_THRESHOLD = 5300;
 	private static final String ENDGAME_REWARD_NEEDLE_TEXT = "<br>5";
-	private double currentpb; //This is to load overall pb
-	private double rolecurrentpb; //This is to load role specific pb's and gets set when the role is determined
+	private volatile double currentpb; //This is to load overall pb
+	private volatile double rolecurrentpb; //This is to load role specific pb's and gets set when the role is determined
 	private static final String BA_COMMAND_STRING = "!ba";
 
     // Constants for role-specific widget group IDs
@@ -214,11 +214,10 @@ public class BaPBPlugin extends Plugin
 
                         chatMessageManager.queue(QueuedMessage.builder()
                                 .type(ChatMessageType.CONSOLE)
-                                .runeLiteFormattedMessage("<col=00ff00>A new " + round_role + " PB has been achieved!</col>")
+                                .runeLiteFormattedMessage("<col=00ff00>A new " + round_role + " PB has been achieved! " + rolecurrentpb + " -> " + roundSeconds + "</col>")
                                 .build());
                         client.playSoundEffect(6765);
 					}
-					currentpb = getCurrentPB("Barbarian Assault");
 					if ((roundSeconds < currentpb || currentpb == 0.0))
 					{
 						configManager.setRSProfileConfiguration("BaPB", "Barbarian Assault", roundSeconds);
@@ -425,7 +424,14 @@ public class BaPBPlugin extends Plugin
 				//log.info(round_role);
 				//log.info(String.valueOf(gameTime.getPBTime()));
 				//log.info(String.valueOf(roleToDouble(round_role)));
-				rolecurrentpb = getCurrentPB(round_role);
+				final String detectedRole = round_role;
+				currentpb = 0.0;
+				rolecurrentpb = 0.0;
+				executor.execute(() ->
+				{
+					rolecurrentpb = getCurrentPB(detectedRole);
+					currentpb = getCurrentPB("Barbarian Assault");
+				});
 			}
 
 
@@ -632,10 +638,17 @@ public class BaPBPlugin extends Plugin
 	{
 		try
 		{
+			if (config.SyncPbs() && service.supportsPersonalBest(pbKey))
+			{
+				String playerName = client.getLocalPlayer().getName();
+				return service.fetchPersonalBest(playerName, pbKey);
+			}
+
 			return configManager.getRSProfileConfiguration("BaPB", pbKey, double.class);
 		}
 		catch (Exception e)
 		{
+			log.warn("Unable to load current personal best for {}", pbKey, e);
 			return 0.0;
 		}
 	}
@@ -725,7 +738,7 @@ public class BaPBPlugin extends Plugin
 
 		search = longBossName(search);
 
-		if(search == "Recent"){
+		if("Recent".equals(search)){
 			recentLookup(chatMessage, message);
 			return;
 		}
@@ -768,10 +781,11 @@ public class BaPBPlugin extends Plugin
 	{
 		int idx = value.indexOf(' ');
 		final String boss = longBossName(value.substring(idx + 1));
+		final boolean syncPbs = config.SyncPbs() && service.supportsPersonalBest(boss);
+		final double profilePb = syncPbs ? 0.0 :
+			configManager.getRSProfileConfiguration("BaPB", boss, double.class);
 
-		final double pb = configManager.getRSProfileConfiguration("BaPB", boss, double.class);
-
-		if (pb <= 0)
+		if (!syncPbs && profilePb <= 0)
 		{
 			return false;
 		}
@@ -782,6 +796,12 @@ public class BaPBPlugin extends Plugin
 		{
 			try
 			{
+				final double pb = syncPbs ? service.fetchPersonalBest(playerName, boss) : profilePb;
+				if (pb <= 0)
+				{
+					return;
+				}
+
 				chatClient.submitPb(playerName, boss, pb);
 			}
 			catch (Exception ex)
@@ -869,6 +889,7 @@ public class BaPBPlugin extends Plugin
 
             case "dh2":
             case "2h":
+			case "dh2h":
                 return "DH 2nd Healer";
 
             case "dhh":
