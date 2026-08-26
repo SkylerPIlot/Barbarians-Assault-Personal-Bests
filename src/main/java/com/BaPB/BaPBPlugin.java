@@ -213,9 +213,9 @@ public class BaPBPlugin extends Plugin
 						log.debug("Personal best of: {} saved in {}",roundSeconds, round_role);
 
                         chatMessageManager.queue(QueuedMessage.builder()
-                                .type(ChatMessageType.CONSOLE)
-                                .runeLiteFormattedMessage("<col=00ff00>A new " + round_role + " PB has been achieved! " + rolecurrentpb + " -> " + roundSeconds + "</col>")
-                                .build());
+                            .type(ChatMessageType.CONSOLE)
+							.runeLiteFormattedMessage("<col=00ff00>A new " + round_role + " PB has been achieved! " + formatRoundTime(rolecurrentpb) + " -> " + formatRoundTime(roundSeconds) + "</col>")
+                            .build());
                         client.playSoundEffect(6765);
 					}
 					if ((roundSeconds < currentpb || currentpb == 0.0))
@@ -238,20 +238,25 @@ public class BaPBPlugin extends Plugin
 						str = new StringBuilder();
 						shutDownActions();//this guarantees the new line is written to disk(prevents having to do weird jank turn plugin on/off behavior)
 					}
-                    service.handleRoundEnd(currentTeam, roundFormat, timers, isLeader, client.getLocalPlayer().getName(), getWorldRegion());
+					Map<String, String> teamSnapshot = new HashMap<>(currentTeam);
+					Timers timersSnapshot = timers.copy();
+					service.handleRoundEnd(teamSnapshot, roundFormat, timersSnapshot, isLeader, client.getLocalPlayer().getName(), getWorldRegion());
 					roundFormat = null;
 				}
 
 				break;
 			}
 			case InterfaceID.BARBASSAULT_OVER_RECRUIT_PLAYER_NAMES: {
+				currentTeam.clear();
 				scanning = true;
 				roundFormat = null;
 			}
 			case 159: {//this is to set scanning true when scroll is used on someone
+				currentTeam.clear();
 				scanning = true;
 			}
 			case 158: {//this is to set scanning true when scroll is used on someone
+				currentTeam.clear();
 				scanning = true;
 			}
 		}
@@ -429,7 +434,8 @@ public class BaPBPlugin extends Plugin
 				rolecurrentpb = 0.0;
 				executor.execute(() ->
 				{
-					rolecurrentpb = getCurrentPB(detectedRole);
+					//rolecurrentpb = getCurrentPB(detectedRole);
+					rolecurrentpb = 720;
 					currentpb = getCurrentPB("Barbarian Assault");
 				});
 			}
@@ -651,6 +657,16 @@ public class BaPBPlugin extends Plugin
 			log.warn("Unable to load current personal best for {}", pbKey, e);
 			return 0.0;
 		}
+	}
+
+	private String formatRoundTime(double time)
+	{
+		int totalSeconds = (int) Math.floor(time + 1e-9);
+		int minutes = totalSeconds / 60;
+		int seconds = totalSeconds % 60;
+		int tenths = (int) Math.floor((time - totalSeconds) * 10.0 + 1e-9);
+
+		return String.format("%d:%02d.%d", minutes, seconds, tenths);
 	}
 
 	void recentLookup(ChatMessage chatMessage, String message){
