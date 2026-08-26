@@ -478,7 +478,7 @@ public class BaPBPlugin extends Plugin
 
     private void checkNpcDeaths(ChatMessage chatMessage) {
         final MessageNode node = chatMessage.getMessageNode();
-        String nodeValue = Text.removeTags(node.getValue());
+		String nodeValue = Text.removeTags(node.getValue()).replaceAll("@[a-z0-9_]{1,64}@", "");
         String[] parts = nodeValue.split(" ");
 
         if (parts.length < 5) {
