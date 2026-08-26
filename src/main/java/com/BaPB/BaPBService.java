@@ -196,9 +196,9 @@ public class BaPBService
             String worldRegion
     )
     {
-        if (!config.SubmitRuns() || roundFormat == null)
+        if (!config.SubmitRuns() || roundFormat == null || currentTeam == null || currentTeam.isEmpty())
         {
-            log.debug("SubmitRuns is disabled or roundFormat is null. Skipping round submission.");
+            log.debug("SubmitRuns is disabled, roundFormat is null, or team data is missing. Skipping round submission.");
             return;
         }
 

@@ -54,6 +54,14 @@ public class GameTimer
         roundTicks = 0;
     }
 
+    GameTimer copy()
+    {
+        GameTimer copy = new GameTimer();
+        copy.roundTicks = roundTicks;
+        copy.running = running;
+        return copy;
+    }
+
     public void onGameTick()
     {
         if (running)

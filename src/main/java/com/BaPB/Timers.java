@@ -38,6 +38,19 @@ public class Timers
             this.lobbyCount = 0;
         }
 
+        private WaveData(WaveData source) {
+            this.waveTimer = source.waveTimer.copy();
+            this.qsTimer = source.qsTimer.copy();
+            this.goodPremove = source.goodPremove;
+            this.lobbyCount = source.lobbyCount;
+            this.relativePoint = source.relativePoint;
+            this.rangerDeathTime = source.rangerDeathTime;
+            this.fighterDeathTime = source.fighterDeathTime;
+            this.runnerDeathTime = source.runnerDeathTime;
+            this.healerDeathTime = source.healerDeathTime;
+            this.queenSpawnTime = source.queenSpawnTime;
+        }
+
         public void onGameTick() {
             waveTimer.onGameTick();
             qsTimer.onGameTick();
@@ -166,6 +179,20 @@ public class Timers
         waveData.clear();
         lastWave = 0;
         lastLobby = 0;
+    }
+
+    public Timers copy()
+    {
+        Timers copy = new Timers();
+        copy.roundTimer.clear();
+        copy.roundTimer.roundTicks = roundTimer.roundTicks;
+        for (Map.Entry<Integer, WaveData> entry : waveData.entrySet())
+        {
+            copy.waveData.put(entry.getKey(), new WaveData(entry.getValue()));
+        }
+        copy.lastWave = lastWave;
+        copy.lastLobby = lastLobby;
+        return copy;
     }
 
     /**
