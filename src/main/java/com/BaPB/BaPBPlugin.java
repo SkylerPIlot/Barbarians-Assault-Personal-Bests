@@ -434,8 +434,7 @@ public class BaPBPlugin extends Plugin
 				rolecurrentpb = 0.0;
 				executor.execute(() ->
 				{
-					//rolecurrentpb = getCurrentPB(detectedRole);
-					rolecurrentpb = 720;
+					rolecurrentpb = getCurrentPB(detectedRole);
 					currentpb = getCurrentPB("Barbarian Assault");
 				});
 			}
