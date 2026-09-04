@@ -270,7 +270,6 @@ public class BaPBPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		timers.logWaveData();
         WorldPoint wp = client.getLocalPlayer().getWorldLocation();
         
         int detectedWave = inWave();
