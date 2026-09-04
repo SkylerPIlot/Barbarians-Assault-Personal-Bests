@@ -129,6 +129,8 @@ public class BaPBService
             int qsTime = 0;
             boolean goodPremove = false;
             boolean reset = false;
+            Double resetWaveTime = 0.0;
+            Integer resetQsTime = 0;
             Lobby.RelativePoint rp = null;
             Double rangerDeathTime = null;
             Double fighterDeathTime = null;
@@ -141,6 +143,8 @@ public class BaPBService
                 qsTime = data.getQsTimer().roundTicks;
                 goodPremove = data.isGoodPremove();
                 reset = data.getLobbyCount() > 1;
+                resetWaveTime = data.getResetWaveTime();
+                resetQsTime = data.getResetQsTime();
                 rp = data.getRelativePoint();
                 rangerDeathTime = data.getRangerDeathTime();
                 fighterDeathTime = data.getFighterDeathTime();
@@ -150,7 +154,7 @@ public class BaPBService
 
             }
 
-            waveData.add(new WaveEntry(waveNumber, waveTime, qsTime, goodPremove, reset, rp, rangerDeathTime, fighterDeathTime, runnerDeathTime, healerDeathTime, queenSpawnTime));
+            waveData.add(new WaveEntry(waveNumber, waveTime, qsTime, goodPremove, reset, resetWaveTime, resetQsTime, rp, rangerDeathTime, fighterDeathTime, runnerDeathTime, healerDeathTime, queenSpawnTime));
         }
 
         // Prepare round time
@@ -388,6 +392,12 @@ public class BaPBService
         @SerializedName("qs_time")
         final int qsTime;
 
+        @SerializedName("reset_wave_time")
+        final Double resetWaveTime;
+
+        @SerializedName("reset_qs_time")
+        final Integer resetQsTime;
+
         @SerializedName("good_premove")
         final boolean goodPremove;
 
@@ -415,10 +425,12 @@ public class BaPBService
         @SerializedName("queen_spawn_time")
         final Double queenSpawnTime;
 
-        WaveEntry(int waveNumber, double waveTime, int qsTime, boolean goodPremove, boolean reset, Lobby.RelativePoint relativePoint, Double rangerDeathTime, Double fighterDeathTime, Double runnerDeathTime, Double healerDeathTime, Double queenSpawnTime) {
+        WaveEntry(int waveNumber, double waveTime, int qsTime, boolean goodPremove, boolean reset, Double resetWaveTime, Integer resetQsTime, Lobby.RelativePoint relativePoint, Double rangerDeathTime, Double fighterDeathTime, Double runnerDeathTime, Double healerDeathTime, Double queenSpawnTime) {
             this.waveNumber = waveNumber;
             this.waveTime = waveTime;
             this.qsTime = qsTime;
+            this.resetWaveTime = resetWaveTime;
+            this.resetQsTime = resetQsTime;
             this.goodPremove = goodPremove;
             this.reset = reset;
             this.rangerDeathTime = rangerDeathTime;

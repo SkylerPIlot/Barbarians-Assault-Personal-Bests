@@ -24,18 +24,26 @@ public class Timers
         private final GameTimer qsTimer;
         private boolean goodPremove;
         private int lobbyCount;
+        private int waveAttemptCount;
+        private int qsAttemptCount;
         private Lobby.RelativePoint relativePoint;
         private Double rangerDeathTime;
         private Double fighterDeathTime;
         private Double runnerDeathTime;
         private Double healerDeathTime;
         private Double queenSpawnTime;
+        private Double resetWaveTime;
+        private Integer resetQsTime;
 
         public WaveData() {
             this.waveTimer = new GameTimer();
             this.qsTimer = new GameTimer();
             this.goodPremove = false;
             this.lobbyCount = 0;
+            this.waveAttemptCount = 0;
+            this.qsAttemptCount = 0;
+            this.resetWaveTime = 0.0;
+            this.resetQsTime = 0;
         }
 
         private WaveData(WaveData source) {
@@ -43,12 +51,16 @@ public class Timers
             this.qsTimer = source.qsTimer.copy();
             this.goodPremove = source.goodPremove;
             this.lobbyCount = source.lobbyCount;
+            this.waveAttemptCount = source.waveAttemptCount;
+            this.qsAttemptCount = source.qsAttemptCount;
             this.relativePoint = source.relativePoint;
             this.rangerDeathTime = source.rangerDeathTime;
             this.fighterDeathTime = source.fighterDeathTime;
             this.runnerDeathTime = source.runnerDeathTime;
             this.healerDeathTime = source.healerDeathTime;
             this.queenSpawnTime = source.queenSpawnTime;
+            this.resetWaveTime = source.resetWaveTime;
+            this.resetQsTime = source.resetQsTime;
         }
 
         public void onGameTick() {
@@ -63,6 +75,20 @@ public class Timers
 
         public void incrementLobbyCount() {
             this.lobbyCount++;
+        }
+
+        public void addResetWaveTime(double waveSeconds) {
+            if (this.resetWaveTime == null) {
+                this.resetWaveTime = 0.0;
+            }
+            this.resetWaveTime += waveSeconds;
+        }
+
+        public void addResetQsTime(int qsTicks) {
+            if (this.resetQsTime == null) {
+                this.resetQsTime = 0;
+            }
+            this.resetQsTime += qsTicks;
         }
     }
 
@@ -88,7 +114,15 @@ public class Timers
 
     public void startWave(int waveNumber)
     {
-        if (waveNumber > 0) getWaveTimer(waveNumber).start();
+        if (waveNumber > 0) {
+            WaveData data = waveData.computeIfAbsent(waveNumber, k -> new WaveData());
+            if (data.waveAttemptCount > 0) {
+                data.addResetWaveTime(data.getWaveTimer().getElapsedSeconds(false, false));
+                data.getWaveTimer().clear();
+            }
+            data.waveAttemptCount++;
+            data.getWaveTimer().start();
+        }
     }
 
     public void stopWave(int waveNumber)
@@ -106,7 +140,15 @@ public class Timers
     }
 
     public void startQS(int waveNumber) {
-        if (waveNumber > 0) getQSTimer(waveNumber).start();
+        if (waveNumber > 0) {
+            WaveData data = waveData.computeIfAbsent(waveNumber, k -> new WaveData());
+            if (data.qsAttemptCount > 0) {
+                data.addResetQsTime(data.getQsTimer().roundTicks);
+                data.getQsTimer().clear();
+            }
+            data.qsAttemptCount++;
+            data.getQsTimer().start();
+        }
     }
 
     public void stopQS(int waveNumber)
@@ -231,17 +273,21 @@ public class Timers
         else if (lastWave > 0 && currentWave == 0)
         {
             stopWave(lastWave);
-            startQS(currentLobby);
 
-            if (relPoint != null)
+            // A zero lobby means the player is between locations or has left BA.
+            // Do not create a wave-data entry because only lobby IDs 1-10 are valid.
+            if (currentLobby > 0)
             {
-                WaveData data = waveData.computeIfAbsent(currentLobby, k -> new WaveData());
-                data.setRelativePoint(relPoint);
-            }
+                WaveData currentLobbyData = waveData.computeIfAbsent(currentLobby, k -> new WaveData());
 
-            // Detect resets
-            WaveData data = waveData.get(currentLobby);
-            if (data != null) data.incrementLobbyCount();
+                if (relPoint != null)
+                {
+                    currentLobbyData.setRelativePoint(relPoint);
+                }
+
+                currentLobbyData.incrementLobbyCount();
+                startQS(currentLobby);
+            }
 
         }
 

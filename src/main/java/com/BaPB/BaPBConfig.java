@@ -28,6 +28,7 @@ package com.BaPB;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
 
 @ConfigGroup("BaPb")
 public interface
@@ -35,7 +36,7 @@ public interface
 BaPBConfig extends Config
 {
 	@ConfigItem(
-			position = 1,
+		position = 1,
 		keyName = "baPB",
 		name = "Save role PB different then Overall PB",
 		description = "Turning this on will save your round time into a specific role round time as well as into the overall pb"
@@ -46,52 +47,64 @@ BaPBConfig extends Config
 	}
 
 	@ConfigItem(
-			position = 2,
+		position = 2,
 		keyName = "msg",
 		name = "Turn round msg on/off",
 		description = "Turning this on will display a nice lil message at the start of the round"
 	)
 		default boolean Message() {return true;}
 	@ConfigItem(
-			position = 3,
+		position = 3,
 		keyName = "log",
-		name = "logger",
+		name = "Logger",
 		description = "Allows to log your times to a file in your .runelite file turn off/on to update file"
 	)
 	default boolean Logging() {return false;}
 
+	@ConfigSection(
+		name = "osrs-ba.com",
+		description = "Configurations related to osrs-ba.com",
+		position = 4,
+		closedByDefault = true
+	)
+	String websiteSection = "websiteSection";
+
 	@ConfigItem(
-			position = 4,
-			keyName = "sub_runs",
-			name = "Submit Runs",
-			warning = "This portion of the plugin submits data to a 3rd party website not controlled or verified by the RuneLite Developers.",
-			description = "This will submit runs to osrs-ba.com"
+		position = 0,
+		keyName = "sub_runs",
+		name = "Submit Runs",
+		warning = "This portion of the plugin submits data to a 3rd party website not controlled or verified by the RuneLite Developers.",
+		description = "This will submit runs to osrs-ba.com",
+		section = websiteSection
 	)
 	default boolean SubmitRuns() { return false; }
 
     @ConfigItem(
-            position = 5,
-            keyName = "sub_qs",
-            name = "Submit QS Stats",
-            description = "This will submit QS statistics to osrs-ba.com. Only used when \"Submit Runs\" is enabled."
+		position = 1,
+		keyName = "sub_qs",
+		name = "Submit QS Stats",
+		description = "This will submit QS statistics to osrs-ba.com. Only used when \"Submit Runs\" is enabled.",
+		section = websiteSection
     )
     default boolean SubmitQS() { return false; }
 
     @ConfigItem(
-			position = 6,
-			keyName = "sync_pbs",
-			name = "Sync PBs",
-			warning = "This portion of the plugin submits data to a 3rd party website not controlled or verified by the RuneLite Developers.",
-			description = "Pulls PBs from osrs-ba.com rather than from your local machine. Helps keep your PBs accurate across multiple devices or accounts."
+		position = 2,
+		keyName = "sync_pbs",
+		name = "Sync PBs",
+		warning = "This portion of the plugin submits data to a 3rd party website not controlled or verified by the RuneLite Developers.",
+		description = "Pulls PBs from osrs-ba.com rather than from your local machine. Helps keep your PBs accurate across multiple devices or accounts.",
+		section = websiteSection
 	)
 	default boolean SyncPbs() { return false; }
 
 
     @ConfigItem(
-			position = 7,
-			keyName = "uuid_key",
-			name = "UUID Key",
-			description = "Key used for linking ALT accounts, you can get one by logging into osrs-ba.com/accounts."
+		position = 3,
+		keyName = "uuid_key",
+		name = "UUID Key",
+		description = "Key used for linking ALT accounts, you can get one by logging into osrs-ba.com/accounts.",
+		section = websiteSection
 	)
 	default String uuid_key() { return null; }
 
