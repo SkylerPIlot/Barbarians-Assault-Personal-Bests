@@ -93,6 +93,8 @@ public class BaPBPlugin extends Plugin
 	private Boolean scanning;
 	private int round_roleID;
 	private String roundFormat;
+    private String roundStartedAt;
+    private final java.util.Set<Integer> observedQsWaves = new java.util.HashSet<>();
     private Map<String, String> currentTeam = new HashMap<>();
     private Boolean isLeader = false;
 	//defines all of my specific widgets and icon names could I do it better yes, but like it works
@@ -240,7 +242,8 @@ public class BaPBPlugin extends Plugin
 					}
 					Map<String, String> teamSnapshot = new HashMap<>(currentTeam);
 					Timers timersSnapshot = timers.copy();
-					service.handleRoundEnd(teamSnapshot, roundFormat, timersSnapshot, isLeader, client.getLocalPlayer().getName(), getWorldRegion());
+					service.handleRoundEnd(teamSnapshot, roundFormat, timersSnapshot, isLeader, client.getLocalPlayer().getName(), getWorldRegion(), roundStartedAt);
+					roundStartedAt = null;
 					roundFormat = null;
 				}
 
@@ -459,7 +462,20 @@ public class BaPBPlugin extends Plugin
 			{
                 timers.resetAll();
                 timers.startRound();
+                roundStartedAt = Instant.now().toString();
+                observedQsWaves.clear();
 			}
+            else if (currentWave >= 2 && currentWave <= 10 && observedQsWaves.add(currentWave))
+            {
+                Timers.WaveData data = timers.getWaveData().get(currentWave);
+                if (Boolean.TRUE.equals(isLeader) && config.SubmitRuns() && config.SubmitQS()
+                    && roundStartedAt != null && client.getLocalPlayer() != null
+                    && data != null && data.getQsAttemptCount() == 1)
+                {
+                    service.submitQsCheckpoint(new HashMap<>(currentTeam), roundFormat,
+                        roundStartedAt, client.getLocalPlayer().getName(), currentWave, data);
+                }
+            }
 		}
 
         // for some reason, the 'All of the Penance ... have been killed' are WELCOME messages for Healer/Collector/Defender roles
