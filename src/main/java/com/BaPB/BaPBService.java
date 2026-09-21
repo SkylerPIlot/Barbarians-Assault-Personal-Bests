@@ -111,7 +111,8 @@ public class BaPBService
             String submittedBy,
             String userUuid,
             String worldRegion,
-            String roundStartedAt
+            String roundStartedAt,
+            Double elapsedRealTime
     ) throws IOException
     {
         // Prepare players
@@ -174,6 +175,7 @@ public class BaPBService
         );
 
         payload.roundStartedAt = roundStartedAt;
+        payload.elapsedRealTime = elapsedRealTime;
         RequestBody body = RequestBody.create(JSON, gson.toJson(payload));
         log.debug("Submitting body: {}", gson.toJson(payload));
         Request req = new Request.Builder()
@@ -202,7 +204,8 @@ public class BaPBService
             boolean scroller,
             String submittedBy,
             String worldRegion,
-            String roundStartedAt
+            String roundStartedAt,
+            Double elapsedRealTime
     )
     {
         if (!config.SubmitRuns() || roundFormat == null || currentTeam == null || currentTeam.isEmpty())
@@ -221,7 +224,7 @@ public class BaPBService
                     fetchToken(submittedBy);
                 }
 
-                submitRunToAPI(currentTeam, roundFormat, timers, scroller, submittedBy, userUuid, worldRegion, roundStartedAt);
+                submitRunToAPI(currentTeam, roundFormat, timers, scroller, submittedBy, userUuid, worldRegion, roundStartedAt, elapsedRealTime);
 
             } catch (Exception e) {
                 log.warn("Failed during token check or run submission", e);
@@ -528,6 +531,8 @@ public class BaPBService
 
     private static class SubmitPayload
     {
+        @SerializedName("elapsed_real_time")
+        Double elapsedRealTime;
         @SerializedName("round_started_at")
         String roundStartedAt;
         @SerializedName("format")

@@ -94,6 +94,7 @@ public class BaPBPlugin extends Plugin
 	private int round_roleID;
 	private String roundFormat;
     private String roundStartedAt;
+    private long roundStartedNanos;
     private final java.util.Set<Integer> observedQsWaves = new java.util.HashSet<>();
     private Map<String, String> currentTeam = new HashMap<>();
     private Boolean isLeader = false;
@@ -207,7 +208,10 @@ public class BaPBPlugin extends Plugin
                 double roundSeconds = timers.getRoundSeconds(isLeader);
                 if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && roundSeconds > 0)
 				{
-                    timers.stopAll();
+                    // Capture before logging, token fetching, or network work.
+                Double elapsedRealTime = roundStartedAt == null ? null
+                    : (System.nanoTime() - roundStartedNanos) / 1_000_000_000.0;
+                timers.stopAll();
 
 					if ((roundSeconds < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
 					{
@@ -242,7 +246,7 @@ public class BaPBPlugin extends Plugin
 					}
 					Map<String, String> teamSnapshot = new HashMap<>(currentTeam);
 					Timers timersSnapshot = timers.copy();
-					service.handleRoundEnd(teamSnapshot, roundFormat, timersSnapshot, isLeader, client.getLocalPlayer().getName(), getWorldRegion(), roundStartedAt);
+					service.handleRoundEnd(teamSnapshot, roundFormat, timersSnapshot, isLeader, client.getLocalPlayer().getName(), getWorldRegion(), roundStartedAt, elapsedRealTime);
 					roundStartedAt = null;
 					roundFormat = null;
 				}
@@ -462,6 +466,7 @@ public class BaPBPlugin extends Plugin
 			{
                 timers.resetAll();
                 timers.startRound();
+                roundStartedNanos = System.nanoTime();
                 roundStartedAt = Instant.now().toString();
                 observedQsWaves.clear();
 			}
