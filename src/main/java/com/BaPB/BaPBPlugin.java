@@ -209,9 +209,11 @@ public class BaPBPlugin extends Plugin
                 if (rewardWidget != null && rewardWidget.getText().contains(ENDGAME_REWARD_NEEDLE_TEXT) && roundSeconds > 0)
 				{
                     // Capture before logging, token fetching, or network work.
-                Double elapsedRealTime = roundStartedAt == null ? null
-                    : (System.nanoTime() - roundStartedNanos) / 1_000_000_000.0;
-                timers.stopAll();
+                	// Match the round timer's 2-tick scroller / 1-tick non-scroller correction.
+                	Double elapsedRealTime = roundStartedAt == null ? null
+                    : Math.max(0.0, (System.nanoTime() - roundStartedNanos) / 1_000_000_000.0
+                        - (isLeader ? 2 : 1) * 0.6);
+                	timers.stopAll();
 
 					if ((roundSeconds < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
 					{
