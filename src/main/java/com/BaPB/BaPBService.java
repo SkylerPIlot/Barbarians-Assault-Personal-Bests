@@ -233,11 +233,16 @@ public class BaPBService
     }
 
     public void submitQsCheckpoint(Map<String, String> team, String format,
-            String startedAt, String reporter, int wave, Timers.WaveData data)
+            String startedAt, String reporter, int wave, Timers.WaveData data, Boolean scroller)
     {
-        if (!config.SubmitRuns() || !config.SubmitQS() || format == null
-                || team.isEmpty() || !team.containsKey(reporter)
-                || data.getQsTimer().roundTicks < 4)
+        // Require the scroller, both submission settings, wave 2-10, a known start/format,
+        // and a reporter in a nonempty team. Only send the first QS attempt with good
+        // premove and at least 4 ticks (the API minimum for scroller checkpoints).
+        if (!Boolean.TRUE.equals(scroller) || !config.SubmitRuns() || !config.SubmitQS()
+                || wave < 2 || wave > 10 || startedAt == null || format == null || reporter == null
+                || team == null || team.isEmpty() || !team.containsKey(reporter)
+                || data == null || data.getQsAttemptCount() != 1
+                || !data.isGoodPremove() || data.getQsTimer().roundTicks < 4)
         {
             return;
         }

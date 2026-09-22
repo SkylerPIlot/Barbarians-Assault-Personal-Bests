@@ -470,16 +470,13 @@ public class BaPBPlugin extends Plugin
                 roundStartedAt = Instant.now().toString();
                 observedQsWaves.clear();
 			}
-            else if (currentWave >= 2 && currentWave <= 10 && observedQsWaves.add(currentWave))
+            else if (observedQsWaves.add(currentWave))
             {
-                Timers.WaveData data = timers.getWaveData().get(currentWave);
-                if (Boolean.TRUE.equals(isLeader) && config.SubmitRuns() && config.SubmitQS()
-                    && roundStartedAt != null && client.getLocalPlayer() != null
-                    && data != null && data.getQsAttemptCount() == 1)
-                {
-                    service.submitQsCheckpoint(new HashMap<>(currentTeam), roundFormat,
-                        roundStartedAt, client.getLocalPlayer().getName(), currentWave, data);
-                }
+                // Mark the first observation even when submission is disabled,
+                // so a reset can never submit a replacement QS.
+                service.submitQsCheckpoint(new HashMap<>(currentTeam), roundFormat,
+                    roundStartedAt, client.getLocalPlayer() == null ? null : client.getLocalPlayer().getName(),
+                    currentWave, timers.getWaveData().get(currentWave), isLeader);
             }
 		}
 
