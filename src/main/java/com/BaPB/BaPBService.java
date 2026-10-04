@@ -27,6 +27,8 @@ public class BaPBService
     private static final String TOKEN_ISSUER_URL   = "https://api.osrs-ba.com/api/v1/tokens/public/";
     private static final String SUBMIT_RUN_URL   = "https://api.osrs-ba.com/api/v1/rounds/";
 
+    private static final String CHECKPOINT_URL = "https://api.osrs-ba.com/api/v1/run-sessions/checkpoints";
+
     private static final String SIGNING_SECRET = "ba-4-all";
     private String cachedToken = null;
     private Instant cachedTokenExpiry = null;
@@ -108,7 +110,9 @@ public class BaPBService
             boolean scroller,
             String submittedBy,
             String userUuid,
-            String worldRegion
+            String worldRegion,
+            String roundStartedAt,
+            Double elapsedRealTime
     ) throws IOException
     {
         // Prepare players
@@ -170,6 +174,8 @@ public class BaPBService
                 waveData
         );
 
+        payload.roundStartedAt = roundStartedAt;
+        payload.elapsedRealTime = elapsedRealTime;
         RequestBody body = RequestBody.create(JSON, gson.toJson(payload));
         log.debug("Submitting body: {}", gson.toJson(payload));
         Request req = new Request.Builder()
@@ -197,7 +203,9 @@ public class BaPBService
             Timers timers,
             boolean scroller,
             String submittedBy,
-            String worldRegion
+            String worldRegion,
+            String roundStartedAt,
+            Double elapsedRealTime
     )
     {
         if (!config.SubmitRuns() || roundFormat == null || currentTeam == null || currentTeam.isEmpty())
@@ -216,10 +224,68 @@ public class BaPBService
                     fetchToken(submittedBy);
                 }
 
-                submitRunToAPI(currentTeam, roundFormat, timers, scroller, submittedBy, userUuid, worldRegion);
+                submitRunToAPI(currentTeam, roundFormat, timers, scroller, submittedBy, userUuid, worldRegion, roundStartedAt, elapsedRealTime);
 
             } catch (Exception e) {
                 log.warn("Failed during token check or run submission", e);
+            }
+        });
+    }
+
+    public void submitQsCheckpoint(Map<String, String> team, String format,
+            String startedAt, String reporter, int wave, Timers.WaveData data, Boolean scroller)
+    {
+        // Require the scroller, both submission settings, wave 2-10, a known start/format,
+        // and a reporter in a nonempty team. Only send the first QS attempt with good
+        // premove and at least 4 ticks (the API minimum for scroller checkpoints).
+        if (!Boolean.TRUE.equals(scroller) || !config.SubmitRuns() || !config.SubmitQS()
+                || wave < 2 || wave > 10 || startedAt == null || format == null || reporter == null
+                || team == null || team.isEmpty() || !team.containsKey(reporter)
+                || data == null || data.getQsAttemptCount() != 1
+                || !data.isGoodPremove() || data.getQsTimer().roundTicks < 4)
+        {
+            return;
+        }
+        // Serialize on the client thread so later ticks/resets cannot change
+        // this first-QS observation while the network request is queued.
+        Map<String, Object> payload = new LinkedHashMap<>();
+        List<PlayerEntry> players = new ArrayList<>();
+        for (Map.Entry<String, String> player : team.entrySet())
+        {
+            players.add(new PlayerEntry(player.getKey(), player.getValue(),
+                    player.getKey().equals(reporter) ? config.uuid_key() : null));
+        }
+        payload.put("format", format);
+        payload.put("players", players);
+        payload.put("reporter", reporter);
+        payload.put("scroller", true);
+        payload.put("round_started_at", startedAt);
+        payload.put("wave_number", wave);
+        payload.put("qs_time", data.getQsTimer().roundTicks);
+        payload.put("good_premove", data.isGoodPremove());
+        Lobby.RelativePoint point = data.getRelativePoint();
+        if (point != null)
+        {
+            payload.put("x_qs_spawn", point.getX());
+            payload.put("y_qs_spawn", point.getY());
+        }
+        final String json = gson.toJson(payload);
+        executor.execute(() -> {
+            try
+            {
+                if (!isTokenValid()) fetchToken(reporter);
+                Request request = new Request.Builder().url(CHECKPOINT_URL)
+                        .header("Authorization", "Bearer " + cachedToken)
+                        .post(RequestBody.create(JSON, json)).build();
+                try (Response response = http.newCall(request).execute())
+                {
+                    if (!response.isSuccessful())
+                        log.warn("QS checkpoint wave {} failed: HTTP {}", wave, response.code());
+                }
+            }
+            catch (Exception ex)
+            {
+                log.warn("QS checkpoint wave {} failed", wave, ex);
             }
         });
     }
@@ -470,6 +536,10 @@ public class BaPBService
 
     private static class SubmitPayload
     {
+        @SerializedName("elapsed_real_time")
+        Double elapsedRealTime;
+        @SerializedName("round_started_at")
+        String roundStartedAt;
         @SerializedName("format")
         final String format;
         @SerializedName("round_time")
