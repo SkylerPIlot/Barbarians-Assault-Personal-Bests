@@ -88,6 +88,8 @@ public class BaPBPlugin extends Plugin
 	private int inGameBit = 0;
     private int currentWave = 0;
     private Timers timers = new Timers();
+    private volatile BaPBService.RoundSplits splitReference = BaPBService.RoundSplits.EMPTY;
+    private BaPBConfig.WaveSplits splitMode = BaPBConfig.WaveSplits.OFF;
     private Lobby lobby = new Lobby();
 	private String round_role;
 	private Boolean scanning;
@@ -174,6 +176,7 @@ public class BaPBPlugin extends Plugin
 		str = new StringBuilder();
         currentTeam.clear();
         timers.resetAll();
+		splitReference = BaPBService.RoundSplits.EMPTY;
 	}
 
 	@Override
@@ -188,6 +191,7 @@ public class BaPBPlugin extends Plugin
 		str = new StringBuilder();
         currentTeam.clear();
         timers.resetAll();
+		splitReference = BaPBService.RoundSplits.EMPTY;
 	}
 
 	private void shutDownActions() throws IOException
@@ -214,6 +218,7 @@ public class BaPBPlugin extends Plugin
                     : Math.max(0.0, (System.nanoTime() - roundStartedNanos) / 1_000_000_000.0
                         - (isLeader ? 2 : 1) * 0.6);
                 	timers.stopAll();
+                    reportWaveSplit(10);
 
 					if ((roundSeconds < rolecurrentpb || rolecurrentpb == 0.0) && config.Seperate())
 					{
@@ -280,7 +285,7 @@ public class BaPBPlugin extends Plugin
 	public void onGameTick(GameTick event)
 	{
         WorldPoint wp = client.getLocalPlayer().getWorldLocation();
-        
+
         int detectedWave = inWave();
         int detectedLobby = lobby.getLobbyId(wp);
         boolean goodPremove = isGoodPremove(wp);
@@ -288,7 +293,13 @@ public class BaPBPlugin extends Plugin
         // Only scroller should calculate relative spawn point
         Lobby.RelativePoint relPoint = isLeader && config.SubmitQS() ? lobby.getRelativeCoordinates(wp, detectedLobby) : null;
 
+        boolean enteredLobby = timers.lastWave > 0 && detectedWave == 0 && detectedLobby > 1;
         timers.updateState(detectedWave, detectedLobby, goodPremove, relPoint);
+
+        // Capture the completed wave split before counting the next lobby's first QS tick.
+        if (enteredLobby && timers.getWaveData().get(detectedLobby).getLobbyCount() == 1)
+            reportWaveSplit(detectedLobby - 1);
+
         timers.onGameTick();
 
 		if(scanning) {
@@ -438,22 +449,56 @@ public class BaPBPlugin extends Plugin
 				//log.info(round_role);
 				//log.info(String.valueOf(gameTime.getPBTime()));
 				//log.info(String.valueOf(roleToDouble(round_role)));
-				final String detectedRole = round_role;
-				currentpb = 0.0;
-				rolecurrentpb = 0.0;
-				executor.execute(() ->
-				{
-					rolecurrentpb = getCurrentPB(detectedRole);
-					currentpb = getCurrentPB("Barbarian Assault");
-				});
 			}
-
-
-
-
         }
     }
 
+    private void loadPersonalBests(String role)
+    {
+        currentpb = 0.0;
+        rolecurrentpb = 0.0;
+        executor.execute(() -> {
+            rolecurrentpb = getCurrentPB(role);
+            currentpb = getCurrentPB("Barbarian Assault");
+        });
+    }
+
+    private void loadWaveSplits(String player, String role)
+    {
+        splitReference = BaPBService.RoundSplits.EMPTY;
+        splitMode = role != null && roundFormat != null ? config.waveSplits() : BaPBConfig.WaveSplits.OFF;
+        final BaPBConfig.WaveSplits mode = splitMode;
+        if (mode == BaPBConfig.WaveSplits.OFF || !service.supportsPersonalBest(role)) return;
+        executor.execute(() -> {
+            try
+            {
+                splitReference = service.fetchRound(player, role, mode == BaPBConfig.WaveSplits.WR);
+            }
+            catch (IOException ex) { log.warn("Unable to load wave splits", ex); }
+        });
+    }
+
+    private void reportWaveSplit(int wave)
+    {
+        if (round_role == null || roundFormat == null
+            || config.waveSplits() == BaPBConfig.WaveSplits.OFF || config.waveSplits() != splitMode) return;
+        BaPBService.RoundSplits reference = splitReference;
+        Double target = reference.cumulative.get(wave);
+        Timers.WaveData data = timers.getWaveData().get(wave);
+        if (target == null || data == null || data.getWaveAttemptCount() == 0) return;
+        double elapsed = timers.getRoundTimer().getElapsedSeconds(isLeader, wave == 10);
+        String message = "Wave " + wave + " Split: " + formatRoundTime(elapsed)
+            + " (" + splitDifference(elapsed - target) + ")";
+        chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.CONSOLE)
+            .runeLiteFormattedMessage(message).build());
+    }
+
+    private String splitDifference(double difference)
+    {
+        if (Math.abs(difference) < 0.05) difference = 0;
+        return "<col=" + (difference > 0 ? "ff0000" : "00ff00") + ">"
+            + String.format(java.util.Locale.ROOT, "%+.1fs", difference) + "</col>";
+    }
 
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
@@ -466,6 +511,9 @@ public class BaPBPlugin extends Plugin
 
 			if (currentWave == START_WAVE)
 			{
+                loadPersonalBests(round_role);
+                loadWaveSplits(client.getLocalPlayer().getName(), round_role);
+
                 timers.resetAll();
                 timers.startRound();
                 roundStartedNanos = System.nanoTime();

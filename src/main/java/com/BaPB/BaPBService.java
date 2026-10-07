@@ -390,8 +390,107 @@ public class BaPBService
         return element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
     }
 
-    private static PersonalBestTarget getPersonalBestTarget(String personalBestType)
+    public RoundSplits fetchRound(String player, String personalBestType, boolean worldRecord) throws IOException
     {
+        PersonalBestTarget target = getPersonalBestTarget(personalBestType);
+        if (target == null || target.format == null || target.role == null)
+        {
+            return RoundSplits.EMPTY;
+        }
+
+        HttpUrl url = roundUrl(player, target, worldRecord);
+        Request request = new Request.Builder().url(url).get().build();
+
+        try (Response response = http.newCall(request).execute())
+        {
+            if (!response.isSuccessful() || response.body() == null)
+            {
+                throw new IOException("Wave split API lookup failed with HTTP " + response.code());
+            }
+
+            try
+            {
+                JsonObject wrapper = gson.fromJson(response.body().charStream(), JsonObject.class);
+                return parseRound(wrapper);
+            }
+            catch (JsonParseException | IllegalStateException | NumberFormatException ex)
+            {
+                throw new IOException("Unable to parse wave split API response", ex);
+            }
+        }
+    }
+
+    private static String apiRole(String role)
+    {
+        String spaced = Character.toUpperCase(role.charAt(0)) + role.substring(1).replace('_', ' ');
+        int space = spaced.indexOf(' ');
+        return space < 0 ? Character.toUpperCase(spaced.charAt(0)) + spaced.substring(1)
+            : spaced.substring(0, space + 1) + Character.toUpperCase(spaced.charAt(space + 1)) + spaced.substring(space + 2);
+    }
+
+    static HttpUrl roundUrl(String player, PersonalBestTarget target, boolean worldRecord)
+    {
+        if (target == null || target.format == null || target.role == null)
+            throw new IllegalArgumentException("Wave split lookups require a format and role");
+        HttpUrl.Builder url = Objects.requireNonNull(HttpUrl.parse(SUBMIT_RUN_URL)).newBuilder()
+            .addQueryParameter("limit", "1")
+            .addQueryParameter("format", target.format);
+
+        if (!worldRecord)
+        {
+            url.addQueryParameter("name", player);
+            url.addQueryParameter("search_role", apiRole(target.role));
+        }
+        return url.build();
+    }
+
+    static RoundSplits parseRound(JsonObject wrapper)
+    {
+        JsonElement data = wrapper == null ? null : wrapper.get("data");
+        if (data == null || !data.isJsonArray() || data.getAsJsonArray().size() == 0) return RoundSplits.EMPTY;
+        JsonObject round = data.getAsJsonArray().get(0).getAsJsonObject();
+        double roundTime = number(round, "round_time");
+        Map<Integer, Double> waves = new HashMap<>();
+        Map<Integer, Double> cumulative = new HashMap<>();
+        JsonElement waveData = round.get("wave_data");
+        if (waveData != null && waveData.isJsonArray())
+            for (JsonElement entry : waveData.getAsJsonArray())
+            {
+                JsonObject wave = entry.getAsJsonObject();
+                int n = (int) number(wave, "wave_number");
+                if (n < 1 || n > 10 || number(wave, "wave_time") <= 0) continue;
+                waves.put(n, number(wave, "wave_time"));
+                // The API already includes QS, resets, and timing corrections.
+                // Null or absent cumulative times must not become invented splits.
+                JsonElement split = wave.get("cumulative_time");
+                if (split != null && !split.isJsonNull()) cumulative.put(n, split.getAsDouble());
+            }
+        return new RoundSplits(roundTime, waves, cumulative);
+    }
+
+    private static double number(JsonObject object, String key)
+    {
+        JsonElement value = object.get(key);
+        return value == null || value.isJsonNull() ? 0 : value.getAsDouble();
+    }
+
+    static final class RoundSplits
+    {
+        static final RoundSplits EMPTY = new RoundSplits(0, Collections.emptyMap(), Collections.emptyMap());
+        final double roundTime;
+        final Map<Integer, Double> waves;
+        final Map<Integer, Double> cumulative;
+
+        RoundSplits(double roundTime, Map<Integer, Double> waves, Map<Integer, Double> cumulative)
+        {
+            this.roundTime = roundTime;
+            this.waves = Collections.unmodifiableMap(new HashMap<>(waves));
+            this.cumulative = Collections.unmodifiableMap(new HashMap<>(cumulative));
+        }
+    }
+    static PersonalBestTarget getPersonalBestTarget(String personalBestType)
+    {
+        if (personalBestType == null) return null;
         switch (personalBestType)
         {
             case "Barbarian Assault": return new PersonalBestTarget(null, null);
@@ -413,7 +512,7 @@ public class BaPBService
         }
     }
 
-    private static class PersonalBestTarget
+    static class PersonalBestTarget
     {
         private final String format;
         private final String role;

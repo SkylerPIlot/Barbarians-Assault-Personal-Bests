@@ -316,8 +316,8 @@ public class Timers
 
             log.debug("Wave {}: waveTimer={}s, qsTimer={}s, goodPremove={}, lobbyCount={}, fighterTime={}, rangerTime={}, runnerTime={}, healerTime={}, relativePoint={}",
                     waveNumber,
-                    data.getWaveTimer().getElapsedSeconds(true),
-                    data.getQsTimer().getElapsedSeconds(true),
+                    data.getWaveTimer().getElapsedSeconds(true, false),
+                    data.getQsTimer().getElapsedSeconds(true, false),
                     data.isGoodPremove(),
                     data.getLobbyCount(),
                     data.getFighterDeathTime(),

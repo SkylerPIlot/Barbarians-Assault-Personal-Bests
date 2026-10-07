@@ -98,9 +98,20 @@ BaPBConfig extends Config
 	)
 	default boolean SyncPbs() { return false; }
 
+	enum WaveSplits { OFF, PB, WR }
+
+	@ConfigItem(
+		position = 3,
+		keyName = "wave_splits",
+		name = "Wave splits",
+		warning = "This portion of the plugin submits data to a 3rd party website not controlled or verified by the RuneLite Developers.",
+		description = "Compare wave splits with the current WR or your PB from osrs-ba.com.",
+		section = websiteSection
+	)
+	default WaveSplits waveSplits() { return WaveSplits.OFF; }
 
     @ConfigItem(
-		position = 3,
+		position = 4,
 		keyName = "uuid_key",
 		name = "UUID Key",
 		description = "Key used for linking ALT accounts, you can get one by logging into osrs-ba.com/accounts.",
